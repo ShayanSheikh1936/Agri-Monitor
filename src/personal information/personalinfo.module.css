@@ -1,0 +1,22 @@
+
+.editBtn{
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    visibility: hidden;
+    width: inherit;
+    height: inherit;
+    border-radius: 50%;
+    background: rgb(0, 0, 0, 0.6);
+    cursor: pointer;
+    /* z-index: 100; */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+}
+
+.imgEdit:hover .editBtn{
+     opacity: 1;
+    visibility: visible;
+}

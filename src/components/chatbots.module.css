@@ -1,0 +1,29 @@
+.lang {
+    /* visibility: hidden; */
+    /* width: 120px; */
+    height: 95px;
+    overflow-x: hidden;
+    background-color: white;
+    color: black;
+    text-align: center;
+    border-radius: 6px;
+    /* padding: 5px 0; */
+    position: absolute;
+    z-index: 1;
+    bottom: 120%;
+    left: 50%;
+    margin-left: -60px;
+    display: flex;
+    flex-direction: column;
+    /* justify-content: center; */
+    /* align-items: center; */
+    gap: 10px;
+    cursor: pointer;
+    
+}
+
+
+
+/* .langShow {
+    visibility: visible;
+} */

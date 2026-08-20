@@ -1,0 +1,68 @@
+@import "tailwindcss";
+.bebas-neue-regular {
+  font-family: "Bebas Neue", sans-serif;
+  font-weight: 600;
+  font-style: normal;
+}
+:root {
+  --text: #0000;
+  --text1: #679936;
+  --text-h: #ffffff;
+  --bg: #F2DEC4;
+  --border: #e5e4e7;
+  
+
+  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --mono: ui-monospace, Consolas, monospace;
+
+  font: 18px/145% var(--sans);
+  letter-spacing: 0.18px;
+  color-scheme: dark;
+  /* color: var(--text); */
+  /* background: var(--bg); */
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  @media (max-width: 1024px) {
+    font-size: 16px;
+  }
+}
+
+
+#root {
+  width: 100%;
+  padding: 0;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.check:checked{
+  background: #000;
+}
+
+
+  /* Input label */
+  .inputLabel {
+    position: absolute;
+    /* top: 0; */
+    left: 10px;
+    z-index: 100;
+    /* font-size: 11px; */
+    /* color: #cccccc00; */
+    pointer-events: none;
+    transition: all 0.3s ease;
+  }
+  
+.input-field:focus + .inputLabel {
+    /* top: -15px;
+     font-size: 15px; */
+     /* background: #D7E8C0; */
+     /* color: var(--validate); */
+     padding: 0 5px;
+     text-wrap: nowrap;
+   }
+
+  

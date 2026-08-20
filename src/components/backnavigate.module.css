@@ -1,0 +1,14 @@
+.GotoHome::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    /* transform: translateX(-50%); */
+    right: 100%;
+    /* background: var(--text1); */
+    height: 12px;
+    width: 12px;
+    border-width: 10px;
+    border-style: solid;
+    border-color: transparent var(--text1) transparent transparent;
+}

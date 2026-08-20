@@ -1,0 +1,8 @@
+.footerNav li{
+    cursor: pointer;
+     transition: 0.4s ease-in ;
+}
+.footerNav li:hover{
+    transform: translateX(10px);
+    transition: 0.4s ease-in ;
+}
