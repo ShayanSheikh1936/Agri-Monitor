@@ -94,7 +94,7 @@ export default function DashboardLayout(){
                   <p className="text-[10px] text-black lowercase">{userData?.EmailAddress}</p>
                 </span>
                 </div>
-                <button onClick={handleLogout} className="flex gap-1 cursor-pointer"><MenuIcon className="w-6 h-6 text-green-700" /></button>
+                <button onClick={handleLogout} className="flex gap-1 cursor-pointer px-4 py-1 bg-[#679936] rounded-2xl">logout</button>
               </div>
             </div>
             <Outlet context={{userData, userCropData}}/>

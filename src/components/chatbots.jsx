@@ -1,11 +1,11 @@
-import { ChevronLeft, ChevronRight, Languages, LanguagesIcon, Maximize, Send, Sprout } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Languages, LanguagesIcon, Maximize, Plus, Send, Sprout, FileImage, ImagePlus } from 'lucide-react';
 import { useState, useRef, useEffect, use } from 'react';
 import {Link} from "react-router-dom"
 import styles from "./chatbots.module.css"
 export default function Chatbot({userinfo}) {
   const [show, setshow] = useState(false);
   const [langValue, setlangValue] = useState("English");
-  
+  const [showfeatures , setshowfeatures] = useState(false)
 
   const [Langshow, setLangshow] = useState(false);
   const [messages, setMessages] = useState([
@@ -20,7 +20,12 @@ export default function Chatbot({userinfo}) {
   }
   // Auto scroll ke liye ref definition
   const chatContainerRef = useRef(null);
-
+  const AddFeatures =[
+    {
+      code: "uploadphoto",
+      name: "photo",
+    },
+  ]
   const lanuages = [
     {
       code: "en",
@@ -163,7 +168,9 @@ export default function Chatbot({userinfo}) {
                 maxWidth: '70%',
                 display: "flex",
                 gap: "5px",
-                fontSize: "16px"
+                fontSize: "16px",
+                textWrap: "wrap",
+                overflowX:"hidden"
               }}>
                 <span>{msg.text}</span>
               </span>
@@ -176,14 +183,19 @@ export default function Chatbot({userinfo}) {
         </div>
 
         <div className='bg-[var(--bg)] border-l-2 border-r-2 border-b-2 border-[var(--text1)] rounded-b-[5px]  px-1 flex flex-col' >
-          <div className='pb-2 px-1 flex'>
+          <div className='pb-2 px-1 flex w-full'>
+            <button onClick={() => setshowfeatures(!showfeatures)} className=' mr-1 rounded-full bg-[var(--text1)] grid place-items-center h-10 w-10 relative inline-block cursor-pointer'><Plus size={28} color={"white"} />
+             <div className={`${styles.features} scrollbar-thumb-[var(--text1) ] scrollbar-thin`} style={{ visibility: `${showfeatures ? "visible" : " hidden"}` }}>
+                 <button  onClick={""} className={`cursor-pointer  px-3 py-1 capitalize text-nowrap flex gap-1`}><ImagePlus color={"var(--text1)"} /> Upload Image</button>
+            </div>
+            </button>
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-              placeholder="Fasal ke bare me poochen..."
-              style={{ flex: 1, padding: '10px', borderRadius: '50px', color: "black", background: "white", outline: "none" }}
+              placeholder="Write a Message"
+              style={{ flex: 1, padding: '10px',borderRadius: '50px' ,border: "none", color: "black", background: "white", outline: "none" }}
             />
             <button onClick={() => setLangshow(!Langshow)} className=' ml-1 rounded-full bg-[var(--text1)] grid place-items-center h-10 w-10 relative inline-block cursor-pointer'><LanguagesIcon color={"white"} /> <div className={`${styles.lang} scrollbar-thumb-[var(--text1)] scrollbar-thin`} style={{ visibility: `${Langshow ? "visible" : " hidden"}` }}>
               {

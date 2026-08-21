@@ -35,6 +35,288 @@ export default function PersonalInfo() {
                     Gender: data.gender || "",
                 },
             }, { merge: true })
+
+            const docsnap = await getDoc(docRef)
+            if (docsnap.exists()) {
+                const docData = docsnap.data();
+                try {
+                    const response = await fetch('https://lagoon-punk-capitol.ngrok-free.dev/webhook/test-webhook', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            name: docData.fullname,
+                            email: docData.EmailAddress,
+                            template: `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to Agri Monitor</title>
+</head>
+
+<body style="margin:0;padding:0;background-color:#F2DEC4;font-family:Arial,Helvetica,sans-serif;color:#26352A;">
+
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#F2DEC4;padding:30px 15px;">
+<tr>
+<td align="center">
+
+<table width="600" cellpadding="0" cellspacing="0" border="0"
+style="max-width:600px;width:100%;background:#ffffff;border-radius:18px;overflow:hidden;">
+
+<!-- HEADER -->
+<tr>
+<td style="background-color:#D7E8C0;padding:30px 35px;text-align:center;">
+
+<img src="https://res.cloudinary.com/nad0od7n/image/upload/v1787253390/logo2_lk1hw8.png" width="180" alt="Agri Monitor" style="display:inline-block;"/>
+
+<div style="font-size:30px;font-weight:800;color:#669934;">
+ Agri Monitor
+</div>
+
+<div style="font-size:13px;color:#526B55;margin-top:6px;">
+AI-Powered Agriculture Intelligence
+</div>
+
+</td>
+</tr>
+
+<!-- HERO -->
+<tr>
+<td style="padding:42px 40px 25px;text-align:center;">
+
+<div style="font-size:13px;font-weight:bold;color:#5C7C54;text-transform:uppercase;letter-spacing:1.5px;">
+WELCOME TO THE FUTURE OF FARMING
+</div>
+
+<h1 style="margin:12px 0 0;font-size:34px;line-height:1.2;color:#26352A;">
+Welcome, ${docData.fullname}! 🌾
+</h1>
+
+<p style="font-size:16px;line-height:1.7;color:#657067;margin:20px 0 0;">
+Welcome to <strong style="color:#315B38;">Agri Monitor</strong> —
+your AI-powered agriculture platform designed to help you monitor crops,
+understand crop health, stay updated with weather conditions, and make
+smarter farming decisions.
+</p>
+
+</td>
+</tr>
+
+<!-- CTA -->
+<tr>
+<td align="center" style="padding:10px 40px 35px;">
+
+<a href="http://localhost:5173/"
+style="display:inline-block;background-color:#315B38;color:#ffffff;text-decoration:none;font-size:16px;font-weight:bold;padding:15px 32px;border-radius:10px;">
+Open Your Dashboard
+</a>
+
+</td>
+</tr>
+
+<!-- FEATURES -->
+<tr>
+<td style="background-color:#F7F9F4;padding:35px 30px;">
+
+<h2 style="text-align:center;margin:0 0 25px;color:#26352A;font-size:23px;">
+Everything You Need in One Place
+</h2>
+
+<table width="100%" cellpadding="0" cellspacing="0" border="0"
+style="margin-bottom:14px;background:#ffffff;border-radius:12px;">
+<tr>
+<td width="55" style="padding:18px 10px 18px 18px;">
+<div style="font-size:27px;">🤖</div>
+</td>
+<td style="padding:16px 18px 16px 5px;">
+<strong style="font-size:16px;color:#315B38;">
+Personal AI Agriculture Chatbot
+</strong>
+<p style="font-size:13px;line-height:1.5;color:#707A72;margin:6px 0 0;">
+Get intelligent AI-powered assistance for your agriculture questions.
+</p>
+</td>
+</tr>
+</table>
+
+<table width="100%" cellpadding="0" cellspacing="0" border="0"
+style="margin-bottom:14px;background:#ffffff;border-radius:12px;">
+<tr>
+<td width="55" style="padding:18px 10px 18px 18px;">
+<div style="font-size:27px;">🌱</div>
+</td>
+<td style="padding:16px 18px 16px 5px;">
+<strong style="font-size:16px;color:#315B38;">
+Crop Health Monitoring
+</strong>
+<p style="font-size:13px;line-height:1.5;color:#707A72;margin:6px 0 0;">
+Add your crop details and monitor crop progress and health.
+</p>
+</td>
+</tr>
+</table>
+
+<table width="100%" cellpadding="0" cellspacing="0" border="0"
+style="margin-bottom:14px;background:#ffffff;border-radius:12px;">
+<tr>
+<td width="55" style="padding:18px 10px 18px 18px;">
+<div style="font-size:27px;">🔬</div>
+</td>
+<td style="padding:16px 18px 16px 5px;">
+<strong style="font-size:16px;color:#315B38;">
+AI Crop Disease Detection
+</strong>
+<p style="font-size:13px;line-height:1.5;color:#707A72;margin:6px 0 0;">
+Analyze crop conditions and identify potential crop diseases.
+</p>
+</td>
+</tr>
+</table>
+
+<table width="100%" cellpadding="0" cellspacing="0" border="0"
+style="margin-bottom:14px;background:#ffffff;border-radius:12px;">
+<tr>
+<td width="55" style="padding:18px 10px 18px 18px;">
+<div style="font-size:27px;">🌦️</div>
+</td>
+<td style="padding:16px 18px 16px 5px;">
+<strong style="font-size:16px;color:#315B38;">
+Weather Updates & Alerts
+</strong>
+<p style="font-size:13px;line-height:1.5;color:#707A72;margin:6px 0 0;">
+Stay updated with weather forecasts and important weather alerts.
+</p>
+</td>
+</tr>
+</table>
+
+<table width="100%" cellpadding="0" cellspacing="0" border="0"
+style="margin-bottom:14px;background:#ffffff;border-radius:12px;">
+<tr>
+<td width="55" style="padding:18px 10px 18px 18px;">
+<div style="font-size:27px;">📈</div>
+</td>
+<td style="padding:16px 18px 16px 5px;">
+<strong style="font-size:16px;color:#315B38;">
+Crop Progress Tracking
+</strong>
+<p style="font-size:13px;line-height:1.5;color:#707A72;margin:6px 0 0;">
+Track your crop development and progress from your dashboard.
+</p>
+</td>
+</tr>
+</table>
+
+<table width="100%" cellpadding="0" cellspacing="0" border="0"
+style="background:#ffffff;border-radius:12px;">
+<tr>
+<td width="55" style="padding:18px 10px 18px 18px;">
+<div style="font-size:27px;">💹</div>
+</td>
+<td style="padding:16px 18px 16px 5px;">
+<strong style="font-size:16px;color:#315B38;">
+Crop Suggestions & Market Rates
+</strong>
+<p style="font-size:13px;line-height:1.5;color:#707A72;margin:6px 0 0;">
+Explore crop suggestions, commodity information and crop market rates.
+</p>
+</td>
+</tr>
+</table>
+
+</td>
+</tr>
+
+<!-- DASHBOARD -->
+<tr>
+<td style="background-color:#D7E8C0;padding:35px;text-align:center;">
+
+<div style="font-size:13px;font-weight:bold;color:#557055;text-transform:uppercase;letter-spacing:1px;">
+YOUR AGRICULTURE COMMAND CENTER
+</div>
+
+<h2 style="font-size:25px;margin:10px 0 12px;color:#26352A;">
+Smarter Insights. Better Decisions. 🌾
+</h2>
+
+<p style="font-size:14px;line-height:1.6;color:#526052;margin:0 auto 22px;">
+Access your crops, AI tools, weather insights, alerts,
+forecasts and market information from one dashboard.
+</p>
+
+<a href="YOUR_DASHBOARD_URL"
+style="display:inline-block;background-color:#26352A;color:#ffffff;text-decoration:none;font-size:15px;font-weight:bold;padding:14px 28px;border-radius:9px;">
+Go to Agri Monitor
+</a>
+
+</td>
+</tr>
+
+<!-- CLOSING -->
+<tr>
+<td style="padding:32px 40px;text-align:center;background:#ffffff;">
+
+<p style="font-size:15px;line-height:1.6;color:#657067;margin:0;">
+We're excited to have you with us.
+</p>
+
+<p style="font-size:15px;line-height:1.6;color:#657067;margin:8px 0 0;">
+Let's grow smarter, together.
+</p>
+
+<div style="margin-top:20px;font-size:18px;font-weight:bold;color:#315B38;">
+— Team Agri Monitor 🌱
+</div>
+
+</td>
+</tr>
+
+<!-- FOOTER -->
+<tr>
+<td align="center" style="background-color:#D7E8C0; padding:25px 30px;text-align:center;">
+
+<img src="https://res.cloudinary.com/nad0od7n/image/upload/v1787253390/logo2_lk1hw8.png" width="180" alt="Agri Monitor" style="display:inline-block;"/>
+
+<div style="font-size:19px;font-weight:800;color:#669934;">
+Agri Monitor
+</div>
+
+<p style="font-size:12px;line-height:1.5;color:#607060;margin:8px 0 15px;">
+AI-powered agriculture intelligence for smarter farming.
+</p>
+
+<p style="font-size:11px;color:#718071;margin:0;">
+© 2026 Agri Monitor. All rights reserved.
+</p>
+
+</td>
+</tr>
+
+</table>
+
+</td>
+</tr>
+</table>
+
+</body>
+</html>
+`
+                        })
+
+                    });
+                    if (response.ok) {
+                        alert('Data successfully sent!');
+                    } else {
+                        alert('Error sending data.');
+                    }
+                }
+                catch (error) {
+                    console.log(error)
+                }
+            }
         }
         navigate("/dashboard")
         setLoading(false)
@@ -65,7 +347,7 @@ export default function PersonalInfo() {
         // 👈 Function ko execute karna zaroori hai!
         fetchUserData();
     }, [currentUser]);
-    
+
 
     // image
     const convertToBase64 = (file) => {
@@ -116,7 +398,7 @@ export default function PersonalInfo() {
     };
     return (
         <>
-            <div className="bg-[var(--bg)] w-full overflow-x-hidden   flex items-center  pb-4 flex-col gap-3">
+            <div className="bg-[var(--bg)] w-full overflow-x-hidden flex items-center  pb-4 flex-col gap-3">
                 <Backnavigate href="/" />
                 <h1 className="bebas-neue-regular text-4xl text-black font-semibold">Personal Information</h1>
                 <div className="max-w-4xl w-screen h-[1px] bg-black mb-2"></div>
