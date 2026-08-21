@@ -91,7 +91,7 @@ AI-Powered Agriculture Intelligence
 WELCOME TO THE FUTURE OF FARMING
 </div>
 
-<h1 style="margin:12px 0 0;font-size:34px;line-height:1.2;color:#26352A;">
+<h1 style="margin:12px 0 0;font-size:34px;line-height:1.2;color:#26352A; text-transform:capitalize;">
 Welcome, ${docData.fullname}! 🌾
 </h1>
 
@@ -308,9 +308,9 @@ AI-powered agriculture intelligence for smarter farming.
 
                     });
                     if (response.ok) {
-                        alert('Data successfully sent!');
+                        console.log('Data successfully sent!');
                     } else {
-                        alert('Error sending data.');
+                        console.log('Error sending data.');
                     }
                 }
                 catch (error) {
