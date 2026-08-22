@@ -57,7 +57,7 @@ export default function DashboardLayout(){
                 <img src="logo1.svg" alt="" width={70} />
                 <h1 className="text-4xl text-[var(--text1)]  [-webkit-text-stroke:0.4px_black] font-bold bebas-neue-regular">AGRI MONITOR</h1>
               </Link>
-              <Link to="/dashboard/addnewcrop" className="px-2 py-3 bg-[var(--text1)]  w-fit rounded-2xl flex gap-2 items-center">
+              <Link to="/dashboard/addnewcrop" className="px-2 py-3 bg-[var(--text1)]  w-fit rounded-2xl flex gap-2 items-center transition-colors hover:bg-[#4a7028]">
                 <Plus size={30} />
                 <p>Add New</p>
               </Link>
@@ -94,7 +94,7 @@ export default function DashboardLayout(){
                   <p className="text-[10px] text-black lowercase">{userData?.EmailAddress}</p>
                 </span>
                 </div>
-                <button onClick={handleLogout} className="flex gap-1 cursor-pointer px-4 py-1 bg-[#679936] rounded-2xl">logout</button>
+                <button onClick={handleLogout} className="flex gap-1 cursor-pointer px-4 py-1 bg-[#679936] rounded-2xl transition-colors hover:bg-[#4a7028]">logout</button>
               </div>
             </div>
             <Outlet context={{userData, userCropData}}/>

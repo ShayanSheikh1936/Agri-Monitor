@@ -1,13 +1,12 @@
-import React, { useEffect, useState } from "react"
+import  { useEffect, useState } from "react"
 import styles from "./personalinfo.module.css"
-import background1 from "../assets/background1.png"
 import Backnavigate from "../components/BackNavigate"
 import { useForm } from "react-hook-form"
 import { Edit } from "lucide-react"
 import { useAuth } from "../features/auth/authContext"
 import { fdb } from "../features/auth/firebase"
 import { setDoc, doc, getDoc } from "firebase/firestore"
-import { useNavigate } from "react-router-dom"
+import {  useNavigate } from "react-router-dom"
 import imageCompression from "browser-image-compression";
 export default function PersonalInfo() {
     const navigate = useNavigate()
@@ -46,8 +45,16 @@ export default function PersonalInfo() {
                             'Content-Type': 'application/json'
                         },
                         body: JSON.stringify({
+                            uid: currentUser.uid,
                             name: docData.fullname,
                             email: docData.EmailAddress,
+                            phone: docData.personaluser.PhoneNum,
+                            city: docData.personaluser.City,
+                            country: docData.personaluser.Country,
+                            address: docData.personaluser.CurrentAddress,
+                            gender: docData.personaluser.Gender,
+                            profession: docData.personaluser.Profession,
+                            cnic: docData.personaluser.CNICPassportNumber,
                             template: `
 <!DOCTYPE html>
 <html lang="en">
@@ -396,6 +403,7 @@ AI-powered agriculture intelligence for smarter farming.
             setImageload(false);
         }
     };
+    
     return (
         <>
             <div className="bg-[var(--bg)] w-full overflow-x-hidden flex items-center  pb-4 flex-col gap-3">
