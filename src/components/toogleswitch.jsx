@@ -1,11 +1,18 @@
-import React, { useState } from 'react';
-
+import { useState } from 'react';
+import { doc, getDoc,  updateDoc } from 'firebase/firestore';
+import { fdb } from '../features/auth/firebase';
+import { useAuth } from '../features/auth/authContext';
 const ToggleSwitch = () => {
-  const [isOn, setIsOn] = useState(false);
+ const [isOn, setIsOn] = useState(false);
+const [loading, setLoading] = useState(false);
+const { currentUser } = useAuth();
 
+async function handleToggle() {
+  setIsOn(!isOn);
+}
   const trackStyle = {
     width: '45px',
-    height: '26px',
+    height: '22px',
     backgroundColor: isOn ? '#22c55e' : '#d1d5db', // Green when on, gray when off
     borderRadius: '26px',
     border: 'none',
@@ -19,9 +26,9 @@ const ToggleSwitch = () => {
   const knobStyle = {
     position: 'absolute',
     top: '3px',
-    left: isOn ? '23px' : '3px',
-    width: '20px',
-    height: '20px',
+    left: isOn ? '26px' : '3px',
+    width: '15px',
+    height: '15px',
     backgroundColor: 'white',
     borderRadius: '50%',
     transition: 'left 0.3s ease',
@@ -30,9 +37,10 @@ const ToggleSwitch = () => {
   };
 
   return (
-    <button 
-      style={trackStyle} 
-      onClick={() => setIsOn(!isOn)}
+    <button
+      disabled={loading}
+      style={trackStyle}
+      onClick={handleToggle}
       aria-checked={isOn}
       role="switch"
     >

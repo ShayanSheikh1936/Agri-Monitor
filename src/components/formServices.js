@@ -96,11 +96,6 @@ export const executeFormLogin = async (data) => {
     // console.log(docsnap.data());
 
     return { user: user, error: null, docData: docsnap.data() };
-    if (!docsnap.exists()) {
-      navigate("/signup")
-    }
-    
-
 
   } catch (error) {
     // console.error("Error in google sign in:", error);

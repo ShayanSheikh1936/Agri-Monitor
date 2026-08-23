@@ -15,7 +15,6 @@ export default function DashboardLayout() {
   const [userCropData, setUserCropData] = useState(null);
   const [userData, setUserData] = useState();
   const [showmenu, setshowmenu] = useState(false);
-  console.log(userData);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -104,12 +103,7 @@ export default function DashboardLayout() {
                 {showmenu && (
                   <div className="absolute p-2 bg-[var(--bg)] bottom-7 right-0 rounded-2xl">
                     <ul className="text-black text-[15px] flex flex-col items-start gap-1 text-nowrap">
-                      <li className="flex gap-1 items-center">
-                        <ToggleSwitch />
-                        <span>Turn on Notifications</span>
-                      </li>
-
-                      <button onClick={handleLogout}>Logout</button>
+                      <button onClick={handleLogout} className="text-red-600">Logout</button>
                     </ul>
                   </div>
                 )}

@@ -1,4 +1,4 @@
-import  { useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import styles from "./personalinfo.module.css"
 import Backnavigate from "../components/BackNavigate"
 import { useForm } from "react-hook-form"
@@ -6,8 +6,10 @@ import { Edit } from "lucide-react"
 import { useAuth } from "../features/auth/authContext"
 import { fdb } from "../features/auth/firebase"
 import { setDoc, doc, getDoc } from "firebase/firestore"
-import {  useNavigate } from "react-router-dom"
+import { useNavigate } from "react-router-dom"
 import imageCompression from "browser-image-compression";
+import ToggleSwitch from "../components/toogleswitch"
+import { set } from "firebase/database"
 export default function PersonalInfo() {
     const navigate = useNavigate()
     const { register, handleSubmit, formState: { errors }, setValue } = useForm();
@@ -17,6 +19,12 @@ export default function PersonalInfo() {
     const [loading, setLoading] = useState(false);
     const [imagePreview, setImagePreview] = useState(null);
     const [imageload, setImageload] = useState(false);
+    const [isOn, setIsOn] = useState(false);
+    
+
+  const handleToggle = () => {
+      setIsOn(!isOn);
+  }
     async function personalData(data) {
         setLoading(true);
         if (currentUser) {
@@ -32,6 +40,7 @@ export default function PersonalInfo() {
                     PostalCode: data.postalcode || "",
                     StreetName: data.streetname || "",
                     Gender: data.gender || "",
+                    notification:isOn
                 },
             }, { merge: true })
 
@@ -55,6 +64,7 @@ export default function PersonalInfo() {
                             gender: docData.personaluser.Gender,
                             profession: docData.personaluser.Profession,
                             cnic: docData.personaluser.CNICPassportNumber,
+                            notification:isOn,
                             template: `
 <!DOCTYPE html>
 <html lang="en">
@@ -403,7 +413,7 @@ AI-powered agriculture intelligence for smarter farming.
             setImageload(false);
         }
     };
-    
+
     return (
         <>
             <div className="bg-[var(--bg)] w-full overflow-x-hidden flex items-center  pb-4 flex-col gap-3">
@@ -425,7 +435,7 @@ AI-powered agriculture intelligence for smarter farming.
                 <form onSubmit={handleSubmit(personalData)} className=" grid grid-cols-3 max-w-[1200px] w-full  gap-5 place-items-center ">
                     <span className="w-full relative">
                         <input readOnly={true} className={`peer block bg-transparent w-full px-3 py-2 rounded-[10px] text-black input-field ${errors.FullName ? "outline-1 outline-red-700" : "outline-1 outline-green-700"}`} type="text" {...register("FullName", { required: "Enter Your Full Name" })} maxLength={60} placeholder="Enter Your Full Name" />
-                        <label htmlFor="input-field" className={`  text-[#cccccc00] inputLabel  top-0 text-[0px] peer-focus:-top-[15px] peer-focus:text-[15px]  peer-focus:bg-[var(--bg)] ${errors.FullName ? "peer-focus:text-red-600" : "peer-focus:text-green-700"}`}>{errors.FullName ? errors.FullName.message : "Full Name"}</label>
+                        <label htmlFor="input-field" className={`text-[#cccccc00] inputLabel  top-0 text-[0px] peer-focus:-top-[15px] peer-focus:text-[15px]  peer-focus:bg-[var(--bg)] ${errors.FullName ? "peer-focus:text-red-600" : "peer-focus:text-green-700"}`}>{errors.FullName ? errors.FullName.message : "Full Name"}</label>
                     </span>
                     <span className="w-full relative">
                         <input readOnly={true} className={`peer block bg-transparent ${errors.EmailAddress ? "outline-1 outline-red-700" : "outline-1 outline-green-700"} w-full px-3 py-2 rounded-[10px] text-black input-field`} type="text" {...register("EmailAddress", { required: "Enter Your Email Address", pattern: { value: /^\S+@\S+\.\S+$/, message: "Email is not valid" } })} maxLength={60} placeholder="Enter Your Email Address" />
@@ -485,11 +495,18 @@ AI-powered agriculture intelligence for smarter farming.
                         <input className={`peer block bg-transparent ${errors.zipcode ? "outline-1 outline-red-700" : "outline-1 outline-green-700"} w-full px-3 py-2 rounded-[10px] text-black input-field`} type="number" {...register("zipcode", { required: "Enter Your ZIP Code" })} maxLength={8} placeholder="Enter Your ZIP Code" />
                         <label htmlFor="input-field" className={`text-[#cccccc00] inputLabel top-0 text-[0px] peer-focus:-top-[15px] peer-focus:text-[15px] ${errors.zipcode ? "peer-focus:text-red-600" : "peer-focus:text-green-700"} peer-focus:bg-[var(--bg)]`}>{errors.zipcode ? errors.zipcode.message : "ZIP Code"}</label>
                     </span>
+                    <div className="col-span-3 flex items-center w-full gap-2 text-green-700 mt-2 text-[15px] "><button
+                        disabled={loading}
+                        className={`w-[45px] h-[22px] ${isOn ? "bg-[#22c55e]" : "bg-[#d1d5db]"} rounded-full cursor-pointer relative transition  duration-300 ease-in-out p-0 outline-none border-none`}
+                        onClick={handleToggle}
+                        aria-checked={isOn}
+                        role="notification"
+                        type="button"
+                    >
+                        <span className={`absolute top-[3px] ${isOn ? "left-[26px]" : "left-[3px]"} w-[15px] h-[15px] bg-white rounded-full transition-[left] duration-300 ease-in-out shadow-[0_2px_4px_rgba(0,0,0,0.2)] pointer-events-none}`} />
+                    </button><p>Turn on notifications and get daily weather updates and alerts in your inbox.</p></div>
                     <input type="submit" value={loading ? "Loading..." : "Submit"} className="col-span-3 bg-[var(--text1)] cursor-pointer mt-5 block text-white px-4 py-2 rounded-[10px] font-semibold" />
                 </form>
-
-
-
             </div>
 
         </>
