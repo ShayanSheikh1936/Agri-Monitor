@@ -1,6 +1,7 @@
 import { MenuIcon, Plus } from "lucide-react";
 import { NavLink, Outlet, useNavigate, Link } from "react-router-dom";
 import { useEffect, useLayoutEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { doc, getDoc } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { auth, fdb } from "../src/features/auth/firebase";
@@ -15,6 +16,7 @@ export default function DashboardLayout() {
   const [userCropData, setUserCropData] = useState(null);
   const [userData, setUserData] = useState();
   const [showmenu, setshowmenu] = useState(false);
+  const [tooltip, setTooltip] = useState(null);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -53,15 +55,52 @@ export default function DashboardLayout() {
     <>
       <div className="bg-[var(--bg)] w-full h-screen">
         <aside className="flex border-r-1 border-[var(--text1)] ">
-          <div className="bg-[#D7E8C0] flex-2 h-screen flex flex-col gap-3 pl-1 pr-2  ">
+          <div className="bg-[#D7E8C0] flex-2 h-screen flex flex-col gap-3 pl-1 pr-2 overflow-x-hidden  ">
             <Link to="/dashboard" className="flex items-center gap-2 border-b-1 border-[var(--text1)] pb-1 ">
               <img src="logo1.svg" alt="" width={70} />
               <h1 className="text-4xl text-[var(--text1)]  [-webkit-text-stroke:0.4px_black] font-bold bebas-neue-regular">AGRI MONITOR</h1>
             </Link>
+            <div className="flex gap-2 items-center">
             <Link to="/dashboard/addnewcrop" className="px-2 py-3 bg-[var(--text1)]  w-fit rounded-2xl flex gap-2 items-center transition-colors hover:bg-[#4a7028]">
               <Plus size={30} />
               <p>Add New</p>
             </Link>
+            {/* Here is user crop data */}
+            <div className="max-w-[180px] w-[100%] h-full flex items-center gap-2 overflow-x-auto scrollbar-none rounded-2xl">
+              {userCropData?.crops?.length > 0 ? (
+                userCropData.crops.map((crop, index) => (
+                  <button
+                    key={index}
+                    className="shrink-0 w-10 h-10 rounded-full overflow-hidden border-2 border-[var(--text1)] hover:border-[#4a7028] transition-colors cursor-pointer bg-[var(--text1)]/20"
+                    onMouseEnter={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setTooltip({ name: crop.CropName || `Crop ${index + 1}`, x: rect.left + rect.width / 2, y: rect.bottom + 6 });
+                    }}
+                    onMouseLeave={() => setTooltip(null)}
+                  >
+                    {crop.cropImage ? (
+                      <img src={crop.cropImage} alt={crop.CropName} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="flex items-center justify-center w-full h-full text-xs font-bold text-[var(--text1)]">
+                        {(crop.CropName || "C").charAt(0).toUpperCase()}
+                      </span>
+                    )}
+                  </button>
+                ))
+              ) : (
+                <p className="text-xs text-gray-500 pl-2">No crops added yet</p>
+              )}
+            </div>
+            {tooltip && createPortal(
+              <span
+                className="uppercase absolute px-2 py-1 text-[10px] font-semibold text-white bg-[var(--text1)] rounded-md whitespace-nowrap pointer-events-none z-[9999]"
+                style={{ left: tooltip.x, top: tooltip.y, transform: 'translateX(-50%)' }}
+              >
+                {tooltip.name}
+              </span>,
+              document.body
+            )}
+            </div>
             <div className="h-100 rounded-2xl overflow-y-auto bg-[rgba(0,0,0,0.1)] p-2 scrollbar-thin scrollbar-track-[#D7E8C0] scrollbar-thumb-[#679936]">
               <ul className="grid gap-2">
                 <p className="text-black font-semibold pl-2">Crop Management:</p>
