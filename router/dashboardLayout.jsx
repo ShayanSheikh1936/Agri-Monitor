@@ -85,6 +85,10 @@ export default function DashboardLayout() {
                 <NavLink to={"/dashboard/marketplace"} className={({ isActive }) => isActive ? "bg-green-700 cursor-pointer  text-white text-[18px] px-2  py-3 rounded-2xl" : "bg-[rgba(0,0,0,0.1)] cursor-pointer text-black text-[18px] px-2  py-3 rounded-2xl"} >
                   <p>Current Market Rates</p>
                 </NavLink>
+                <p className="text-black font-semibold pl-2">Disaster Management</p>
+                <NavLink to={"/dashboard/disasteralerts"} className={({ isActive }) => isActive ? "bg-red-500/90 cursor-pointer  text-white text-[18px] px-2  py-3 rounded-2xl" : "bg-red-500/90 cursor-pointer text-white text-[18px] px-2  py-3 rounded-2xl"} >
+                  <p>Disaster Alerts</p>
+                </NavLink>
               </ul>
             </div>
             <div className="mb-1 flex gap-2 items-center border-t-1 border-[var(--text1)] pt-2 justify-between">
@@ -96,14 +100,14 @@ export default function DashboardLayout() {
                 </span>
               </div>
               <div className="relative text-[var(--text1)]">
-                <button onClick={() => setshowmenu(!showmenu)}>
+                <button className="cursor-pointer" onClick={() => setshowmenu(!showmenu)}>
                   <MenuIcon />
                 </button>
 
                 {showmenu && (
                   <div className="absolute p-2 bg-[var(--bg)] bottom-7 right-0 rounded-2xl">
                     <ul className="text-black text-[15px] flex flex-col items-start gap-1 text-nowrap">
-                      <button onClick={handleLogout} className="text-red-600">Logout</button>
+                      <button onClick={handleLogout} className="text-red-600 cursor-pointer">Logout</button>
                     </ul>
                   </div>
                 )}

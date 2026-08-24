@@ -305,9 +305,6 @@ export default function Chatbot({ userinfo }) {
     }
   };
 
-  // ------------------------------------
-  // Enter key
-  // ------------------------------------
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -317,9 +314,7 @@ export default function Chatbot({ userinfo }) {
 
   return (
     <>
-      {/* -------------------------------
-          Chatbot Floating Button
-      -------------------------------- */}
+      
       {!show && (
         <div className="fixed bottom-2 right-2 flex flex-col z-1000">
           <div className="flex w-full justify-end">
@@ -337,9 +332,7 @@ export default function Chatbot({ userinfo }) {
         </div>
       )}
 
-      {/* -------------------------------
-          Chatbot Window
-      -------------------------------- */}
+    
       <div
         className="fixed bottom-5 right-0 w-fit"
         style={{
@@ -386,7 +379,7 @@ export default function Chatbot({ userinfo }) {
           </div>
         </div>
 
-        {/* Messages */}
+        
         <div
           ref={chatContainerRef}
           className="border-l-2 border-r-2 border-[var(--text1)] scrollbar-thumb-amber-50 rounded-t-[5px]"

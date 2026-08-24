@@ -81,6 +81,9 @@ export default function Routers() {
                         },{
                             path: "/dashboard/marketplace",
                             element: <h1>pesticides</h1>,
+                        },{
+                            path: "/dashboard/disasteralerts",
+                            element: <h1>pesticides</h1>,
                         }
                     ]
                 }
