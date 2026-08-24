@@ -20,11 +20,11 @@ export default function PersonalInfo() {
     const [imagePreview, setImagePreview] = useState(null);
     const [imageload, setImageload] = useState(false);
     const [isOn, setIsOn] = useState(false);
-    
 
-  const handleToggle = () => {
-      setIsOn(!isOn);
-  }
+
+    const handleToggle = () => {
+        setIsOn(!isOn);
+    }
     async function personalData(data) {
         setLoading(true);
         if (currentUser) {
@@ -40,7 +40,7 @@ export default function PersonalInfo() {
                     PostalCode: data.postalcode || "",
                     StreetName: data.streetname || "",
                     Gender: data.gender || "",
-                    notification:isOn
+                    notification: isOn
                 },
             }, { merge: true })
 
@@ -64,7 +64,7 @@ export default function PersonalInfo() {
                             gender: docData.personaluser.Gender,
                             profession: docData.personaluser.Profession,
                             cnic: docData.personaluser.CNICPassportNumber,
-                            notification:isOn,
+                            notification: isOn,
                             template: `
 <!DOCTYPE html>
 <html lang="en">

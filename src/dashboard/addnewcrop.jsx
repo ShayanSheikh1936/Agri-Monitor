@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
-import { collection, addDoc, serverTimestamp, setDoc, doc } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp, arrayUnion } from "firebase/firestore";
 import { fdb } from "../features/auth/firebase";
 import { useAuth } from "../features/auth/authContext";
 import Backnavigate from "../components/BackNavigate";
@@ -12,6 +12,8 @@ export default function DynamicCropForm() {
     const [gpsCoords, setGpsCoords] = useState(null);
     const [gpsLoading, setGpsLoading] = useState(false);
     const [calculatedAge, setCalculatedAge] = useState(null);
+    const [cropImage, setCropImage] = useState(null);
+    const fileInputRef = useRef(null);
 
     const {
         register,
@@ -69,26 +71,58 @@ export default function DynamicCropForm() {
         }
     };
 
+    // Image Compression & Base64 Conversion
+    const handleImageChange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement("canvas");
+                let { width, height } = img;
+                const maxSize = 300;
+                if (width > height) {
+                    if (width > maxSize) { height = (height * maxSize) / width; width = maxSize; }
+                } else {
+                    if (height > maxSize) { width = (width * maxSize) / height; height = maxSize; }
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext("2d");
+                ctx.drawImage(img, 0, 0, width, height);
+                const base64 = canvas.toDataURL("image/jpeg", 0.5);
+                setCropImage(base64);
+            };
+            img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+    };
+
     // Form Submit Handler
     const onSubmit = async (data) => {
         setLoading(true);
         setSuccessMsg("");
         try {
+            const cropEntry = {
+                ...data,
+                plantAgeDays: calculatedAge || 0,
+                gpsLocation: gpsCoords || null,
+                cropImage: cropImage || null,
+                createdAt: new Date().toISOString(),
+            };
+
             await setDoc(doc(fdb, "crops", currentUser.uid), {
-
-                
-                    ...data,
-                    plantAgeDays: calculatedAge || 0,
-                    gpsLocation: gpsCoords || null,
-                    createdAt: serverTimestamp(),
-                
-
-            });
+                crops: arrayUnion(cropEntry),
+                updatedAt: serverTimestamp(),
+            }, { merge: true });
 
             setSuccessMsg("🎉 Crop successfully registered with smart tracking!");
-            reset();
+            reset({ HealthStatus: "Healthy" });
             setGpsCoords(null);
             setCalculatedAge(null);
+            setCropImage(null);
+            if (fileInputRef.current) fileInputRef.current.value = "";
         } catch (error) {
             console.error("Error saving crop:", error);
             alert("Failed to save crop data.");
@@ -111,7 +145,7 @@ export default function DynamicCropForm() {
                     </span>
                     <h1 className="bebas-neue-regular text-4xl font-semibold font-extrabold mt-2 text-[var(--text1)]">Add New Crop Profile</h1>
                     <p className="text-sm mt-1 text-[var(--text1)]">
-                        Fill details for AI health diagnostics & automated watering schedules.
+                        Fill in the details below to register your crop for smart monitoring.
                     </p>
                 </div>
             </div>
@@ -213,22 +247,65 @@ export default function DynamicCropForm() {
                                 )}
                             </span>
 
-                            {/* 4. Area / Quantity */}
+                            {/* 4. Area / Quantity + Unit Selector */}
+                            <span className="w-full relative flex gap-2">
+                                <span className="flex-1 relative">
+                                    <input
+                                        className={`peer block bg-transparent ${errors.AreaSize ? "outline-1 outline-red-700" : "outline-1 outline-green-700"
+                                            } w-full px-3 py-2 rounded-[10px] text-black input-field`}
+                                        type="text"
+                                        maxLength={40}
+                                        placeholder="Enter Area / Quantity"
+                                        {...register("AreaSize", { required: "Enter Quantity / Area" })}
+                                    />
+                                    <label
+                                        htmlFor="input-field"
+                                        className={`text-[#cccccc00] top-0 text-[0px] peer-focus:-top-[15px] peer-focus:text-[15px] peer-focus:bg-[#D7E8C0] inputLabel ${errors.AreaSize ? "peer-focus:text-red-600" : "peer-focus:text-green-700"
+                                            }`}
+                                    >
+                                        {errors.AreaSize ? errors.AreaSize.message : "Area Size / Pot Count"}
+                                    </label>
+                                </span>
+                                <span className="w-36 relative">
+                                    <select
+                                        className={`peer block bg-transparent ${errors.AreaUnit ? "outline-1 outline-red-700" : "outline-1 outline-green-700"
+                                            } w-full px-3 py-2 rounded-[10px] text-black input-field`}
+                                        {...register("AreaUnit", { required: "Select unit" })}
+                                    >
+                                        <option value="">Unit</option>
+                                        <option value="Acres">Acres</option>
+                                        <option value="Hectares">Hectares</option>
+                                        <option value="Square Feet">Square Feet</option>
+                                        <option value="Square Meters">Square Meters</option>
+                                        <option value="Kanal">Kanal</option>
+                                        <option value="Marla">Marla</option>
+                                    </select>
+                                    <label
+                                        htmlFor="input-field"
+                                        className={`text-[#cccccc00] top-0 text-[0px] peer-focus:-top-[15px] peer-focus:text-[15px] peer-focus:bg-[#D7E8C0] inputLabel ${errors.AreaUnit ? "peer-focus:text-red-600" : "peer-focus:text-green-700"
+                                            }`}
+                                    >
+                                        {errors.AreaUnit ? errors.AreaUnit.message : "Unit"}
+                                    </label>
+                                </span>
+                            </span>
+
+                            {/* 4b. Field Count */}
                             <span className="w-full relative">
                                 <input
-                                    className={`peer block bg-transparent ${errors.AreaSize ? "outline-1 outline-red-700" : "outline-1 outline-green-700"
+                                    className={`peer block bg-transparent ${errors.FieldCount ? "outline-1 outline-red-700" : "outline-1 outline-green-700"
                                         } w-full px-3 py-2 rounded-[10px] text-black input-field`}
-                                    type="text"
-                                    maxLength={40}
-                                    placeholder="Enter Area / Quantity"
-                                    {...register("AreaSize", { required: "Enter Quantity / Area" })}
+                                    type="number"
+                                    min={1}
+                                    placeholder="Enter Field Count"
+                                    {...register("FieldCount", { required: "Enter Field Count", max: { value: 9999, message: "Max 9999" } })}
                                 />
                                 <label
                                     htmlFor="input-field"
-                                    className={`text-[#cccccc00] top-0 text-[0px] peer-focus:-top-[15px] peer-focus:text-[15px] peer-focus:bg-[#D7E8C0] inputLabel ${errors.AreaSize ? "peer-focus:text-red-600" : "peer-focus:text-green-700"
+                                    className={`text-[#cccccc00] top-0 text-[0px] peer-focus:-top-[15px] peer-focus:text-[15px] peer-focus:bg-[#D7E8C0] inputLabel ${errors.FieldCount ? "peer-focus:text-red-600" : "peer-focus:text-green-700"
                                         }`}
                                 >
-                                    {errors.AreaSize ? errors.AreaSize.message : "Area Size / Pot Count"}
+                                    {errors.FieldCount ? errors.FieldCount.message : "Field Count"}
                                 </label>
                             </span>
 
@@ -322,13 +399,48 @@ export default function DynamicCropForm() {
                             )}
                         </div>
 
+                        {/* Crop Image Upload */}
+                        <div className="p-4 bg-[#D7E8C0] rounded-2xl border-2 border-green-700 space-y-3">
+                            <p className="text-xs font-bold text-emerald-900 uppercase">Crop Image (Optional)</p>
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/jpeg,image/png,image/webp"
+                                onChange={handleImageChange}
+                                className="block w-full text-sm text-gray-700 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-emerald-700 file:text-white hover:file:bg-emerald-800 file:cursor-pointer cursor-pointer outline-1 outline-green-700 rounded-[10px]"
+                            />
+                            {cropImage && (
+                                <div className="flex items-center gap-3">
+                                    <img
+                                        src={cropImage}
+                                        alt="Crop preview"
+                                        className="w-20 h-20 object-cover rounded-xl border-2 border-emerald-600 shadow-sm"
+                                    />
+                                    <div>
+                                        <p className="text-xs text-emerald-800 font-semibold">Image ready</p>
+                                        <p className="text-[10px] text-gray-600">{(cropImage.length / 1024).toFixed(1)} KB (compressed)</p>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setCropImage(null);
+                                                if (fileInputRef.current) fileInputRef.current.value = "";
+                                            }}
+                                            className="text-[10px] text-red-600 hover:text-red-800 font-semibold mt-1 cursor-pointer"
+                                        >
+                                            Remove
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
                         {/* Submit Button */}
                         <button
                             type="submit"
                             disabled={loading}
                             className="w-full bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white font-bold py-4 rounded-2xl transition-all shadow-lg hover:shadow-emerald-200 cursor-pointer disabled:opacity-50"
                         >
-                            {loading ? "Registering Crop to Dashboard..." : "Save & Enable Smart Tracking"}
+                            {loading ? "Saving..." : "Save & Enable Smart Tracking"}
                         </button>
 
                     </form>
@@ -344,6 +456,13 @@ export default function DynamicCropForm() {
 
                         <div className="space-y-4">
                             <div>
+                                {cropImage && (
+                                    <img
+                                        src={cropImage}
+                                        alt="Crop preview"
+                                        className="w-full h-40 object-cover rounded-xl border border-emerald-700 mb-3"
+                                    />
+                                )}
                                 <h3 className="text-4xl font-bold text-white bebas-neue-regular">
                                     {watchCropName || "Crop Name"}
                                 </h3>
@@ -359,16 +478,22 @@ export default function DynamicCropForm() {
                                 </div>
                                 <div className="flex justify-between">
                                     <span className="text-emerald-300">GPS Setup:</span>
-                                    <span className="font-semibold">{gpsCoords ? "✅ Attached" : "❌ Pending"}</span>
+                                    <span className="font-semibold">{gpsCoords ? "✅ Location detected" : "⭕ Location Not Detected"}</span>
                                 </div>
-                                <div className="flex justify-between">
+                                <div className="flex justify-between items-center">
                                     <span className="text-emerald-300">Health:</span>
-                                    <span className="font-semibold text-emerald-400">{watchHealthStatus || "Healthy"}</span>
+                                    <span className="font-semibold text-emerald-400">
+                                        {watchHealthStatus === "YellowLeaves" && "🟡 "}
+                                        {watchHealthStatus === "PestAttack" && "🐛 "}
+                                        {watchHealthStatus === "Dry" && "🥀 "}
+                                        {(!watchHealthStatus || watchHealthStatus === "Healthy") && "💚 "}
+                                        {watchHealthStatus || "Healthy"}
+                                    </span>
                                 </div>
                             </div>
 
                             <div className="p-3 bg-emerald-900/80 rounded-xl text-[11px] text-emerald-200 border border-emerald-800">
-                                💡 <strong>Important Tip:</strong> If you want to get perfect crop result so fill this form accuratly.
+                                💡 <strong>Tip:</strong> Accurate data helps us give you better crop insights and alerts.
                             </div>
                         </div>
                     </div>
