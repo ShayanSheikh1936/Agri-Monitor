@@ -11,6 +11,7 @@ import DashboardLayout from "./dashboardLayout";
 import DashboardProtectedLayout from "../src/features/dashboardprotectedlayout"
 import AddCropForm from "../src/dashboard/addnewcrop";
 import Blogs from "../src/pages/blogs";
+import Features from "../src/pages/features";
 export default function Routers() {
     const setup = createBrowserRouter([
         {
@@ -28,8 +29,8 @@ export default function Routers() {
                     path: "/signup",
                     element: <Signup />
                 }, {
-                    path: "/about",
-                    element: [<>About page</>, <Layout />]
+                    path: "/features",
+                    element: [<Features />, <Layout />]
                 },
                 {
                     path: "/contact",

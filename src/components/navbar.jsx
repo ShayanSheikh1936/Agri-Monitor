@@ -27,7 +27,7 @@ export default function Navbar() {
                 <div><ul className={`flex gap-8 ${styles.navlists} items-center text-[var(--bg)]`} >
                     <li className={`${styles.navList}  py-7 before:bg-[var(--bg)]`} ><NavLink className={({isActive})=> isActive ? `${styles.Activenav} py-7 before:bg-[var(--bg)]`:""} to="/">Home</NavLink></li>
                     <li ref={showMenu} className={`${styles.navList} navList py-7 before:bg-[var(--bg)] relative flex gap-1 items-center`}><p>Services</p>  <p className="arrow-down"><ChevronDown /></p>{show && <Submenu />}</li>
-                    <li className={`${styles.navList} py-7 before:bg-[var(--bg)]`}><NavLink className={({isActive})=> isActive ? `${styles.Activenav} py-7 before:bg-[var(--bg)]`:""} to="/about">Features</NavLink></li>
+                    <li className={`${styles.navList} py-7 before:bg-[var(--bg)]`}><NavLink className={({isActive})=> isActive ? `${styles.Activenav} py-7 before:bg-[var(--bg)]`:""} to="/features">Features</NavLink></li>
                     <li className={`${styles.navList}  py-7  before:bg-[var(--bg)]`}><NavLink className={({isActive})=> isActive ? `${styles.Activenav} py-7 before:bg-[var(--bg)]`:""} to="/blogs">Blogs </NavLink></li>
                     <li className={`${styles.navList}  py-7 before:bg-[var(--bg)]`}><NavLink className={({isActive})=> isActive ? `${styles.Activenav} py-7 before:bg-[var(--bg)]`:""} to="/contact">Contact Us</NavLink></li>
                 </ul></div>
@@ -61,7 +61,7 @@ export function Navbar2() {
                 <div><ul className={`flex gap-8 ${styles.navlists} `} >
                     <li className={`${styles.navList}  py-7  before:bg-white`} ><NavLink className={({isActive}) => isActive ? `${styles.Activenav} py-7 before:bg-white`: ""} to="/">Home</NavLink></li>
                     <li ref={showMenu} className={`${styles.navList} before:bg-white navList py-7 relative flex gap-1 items-center`}><p>Services</p>  <p className="arrow-down"><ChevronDown /></p>{show && <Submenu />}</li>
-                    <li className={`${styles.navList}  py-7  before:bg-white`}><NavLink className={({isActive}) => isActive ? `${styles.Activenav} py-7 before:bg-white`: ""} to="/about">Features</NavLink></li>
+                    <li className={`${styles.navList}  py-7  before:bg-white`}><NavLink className={({isActive}) => isActive ? `${styles.Activenav} py-7 before:bg-white`: ""} to="/features">Features</NavLink></li>
                     <li className={`${styles.navList}  py-7 flex gap-1 items-center before:bg-white`}><NavLink className={({isActive}) => isActive ? `${styles.Activenav} py-7 before:bg-white`: ""} to="/blogs">Blogs </NavLink><ChevronDown /></li>
                     <li className={`${styles.navList}  py-7  before:bg-white`}><NavLink className={({isActive}) => isActive ? `${styles.Activenav} py-7 before:bg-white`: ""} to="/contact">Contact Us</NavLink></li>
                 </ul></div>
