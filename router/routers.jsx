@@ -10,6 +10,7 @@ import ContactUs from "../src/pages/contactus";
 import DashboardLayout from "./dashboardLayout";
 import DashboardProtectedLayout from "../src/features/dashboardprotectedlayout"
 import AddCropForm from "../src/dashboard/addnewcrop";
+import Blogs from "../src/pages/blogs";
 export default function Routers() {
     const setup = createBrowserRouter([
         {
@@ -36,7 +37,7 @@ export default function Routers() {
                 },
                 {
                     path:"/blogs",
-                    element:[<>blogs</>, <Layout/>]
+                    element:[<Blogs />, <Layout/>]
                 },
                 {
                     path: "/personalinfo",

@@ -1,15 +1,8 @@
 import { useState } from "react";
-import Navbar, { Navbar2 } from "../components/navbar";
-import Footer from "../components/footer";
 import styles from "./contactus.module.css";
 import {
   Send,
-  MapPin,
-  Phone,
-  Mail,
-  Clock,
   MessageCircle,
-  Leaf,
   ShieldCheck,
   Headphones,
   Sprout,
@@ -45,8 +38,6 @@ export default function ContactUs() {
 
   return (
     <>
-      
-
       <div className={styles.page}>
         {/* ── Hero Banner ── */}
         <section className={styles.hero}>
