@@ -13,7 +13,9 @@ export default function DynamicCropForm() {
     const [gpsLoading, setGpsLoading] = useState(false);
     const [calculatedAge, setCalculatedAge] = useState(null);
     const [cropImage, setCropImage] = useState(null);
+    const [affectedImage, setAffectedImage] = useState(null);
     const fileInputRef = useRef(null);
+    const affectedFileInputRef = useRef(null);
 
     const {
         register,
@@ -99,6 +101,34 @@ export default function DynamicCropForm() {
         reader.readAsDataURL(file);
     };
 
+    // Affected Part Image Compression & Base64 Conversion
+    const handleAffectedImageChange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement("canvas");
+                let { width, height } = img;
+                const maxSize = 300;
+                if (width > height) {
+                    if (width > maxSize) { height = (height * maxSize) / width; width = maxSize; }
+                } else {
+                    if (height > maxSize) { width = (width * maxSize) / height; height = maxSize; }
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext("2d");
+                ctx.drawImage(img, 0, 0, width, height);
+                const base64 = canvas.toDataURL("image/jpeg", 0.5);
+                setAffectedImage(base64);
+            };
+            img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+    };
+
     // Form Submit Handler
     const onSubmit = async (data) => {
         setLoading(true);
@@ -109,6 +139,7 @@ export default function DynamicCropForm() {
                 plantAgeDays: calculatedAge || 0,
                 gpsLocation: gpsCoords || null,
                 cropImage: cropImage || null,
+                affectedImage: (watchHealthStatus && watchHealthStatus !== "Healthy") ? (affectedImage || null) : null,
                 createdAt: new Date().toISOString(),
             };
 
@@ -122,7 +153,9 @@ export default function DynamicCropForm() {
             setGpsCoords(null);
             setCalculatedAge(null);
             setCropImage(null);
+            setAffectedImage(null);
             if (fileInputRef.current) fileInputRef.current.value = "";
+            if (affectedFileInputRef.current) affectedFileInputRef.current.value = "";
         } catch (error) {
             console.error("Error saving crop:", error);
             alert("Failed to save crop data.");
@@ -255,7 +288,7 @@ export default function DynamicCropForm() {
                                             } w-full px-3 py-2 rounded-[10px] text-black input-field`}
                                         type="text"
                                         maxLength={40}
-                                        placeholder="Enter Area / Quantity"
+                                        placeholder="Enter Area"
                                         {...register("AreaSize", { required: "Enter Quantity / Area" })}
                                     />
                                     <label
@@ -263,7 +296,7 @@ export default function DynamicCropForm() {
                                         className={`text-[#cccccc00] top-0 text-[0px] peer-focus:-top-[15px] peer-focus:text-[15px] peer-focus:bg-[#D7E8C0] inputLabel ${errors.AreaSize ? "peer-focus:text-red-600" : "peer-focus:text-green-700"
                                             }`}
                                     >
-                                        {errors.AreaSize ? errors.AreaSize.message : "Area Size / Pot Count"}
+                                        {errors.AreaSize ? errors.AreaSize.message : "Area Size"}
                                     </label>
                                 </span>
                                 <span className="w-36 relative">
@@ -351,6 +384,29 @@ export default function DynamicCropForm() {
                                 </label>
                             </span>
 
+                            {/* 7. Seed Type */}
+                            <span className="w-full relative">
+                                <select
+                                    className={`peer block bg-transparent ${errors.SeedType ? "outline-1 outline-red-700" : "outline-1 outline-green-700"
+                                        } w-full px-3 py-2 rounded-[10px] text-black input-field`}
+                                    {...register("SeedType")}
+                                >
+                                    <option value="Hybrid">Hybrid (H-1)</option>
+                                    <option value="Desi">Desi / Local (Indigenous)</option>
+                                    <option value="Imported">Imported / Foreign</option>
+                                    <option value="Organic">Organic / Natural</option>
+                                    <option value="GMO">GMO (Genetically Modified)</option>
+                                    <option value="OpenPollinated">Open-Pollinated / Heirloom</option>
+                                </select>
+                                <label
+                                    htmlFor="input-field"
+                                    className={`text-[#cccccc00] top-0 text-[0px] peer-focus:-top-[15px] peer-focus:text-[15px] peer-focus:bg-[#D7E8C0] inputLabel ${errors.SeedType ? "peer-focus:text-red-600" : "peer-focus:text-green-700"
+                                        }`}
+                                >
+                                    {errors.SeedType ? errors.SeedType.message : "Seed Type"}
+                                </label>
+                            </span>
+
                         </div>
 
                         {/* Health Status & Dynamic Affected Field */}
@@ -377,7 +433,7 @@ export default function DynamicCropForm() {
 
                             {/* Dynamic Field: Shows only when Health is NOT Healthy */}
                             {watchHealthStatus && watchHealthStatus !== "Healthy" && (
-                                <div className="pt-2">
+                                <div className="pt-2 space-y-4">
                                     <span className="w-full relative">
                                         <input
                                             className={`peer block bg-transparent ${errors.AffectedPart ? "outline-1 outline-red-700" : "outline-1 outline-green-700"
@@ -395,6 +451,41 @@ export default function DynamicCropForm() {
                                             {errors.AffectedPart ? errors.AffectedPart.message : "Affected Part (e.g. Upper Leaves)"}
                                         </label>
                                     </span>
+
+                                    {/* Affected Part Image Upload */}
+                                    <div>
+                                        <p className="text-xs font-bold text-emerald-900 uppercase mb-2">Affected Part Image (Optional)</p>
+                                        <input
+                                            ref={affectedFileInputRef}
+                                            type="file"
+                                            accept="image/jpeg,image/png,image/webp"
+                                            onChange={handleAffectedImageChange}
+                                            className="block w-full text-sm text-gray-700 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-emerald-700 file:text-white hover:file:bg-emerald-800 file:cursor-pointer cursor-pointer outline-1 outline-green-700 rounded-[10px]"
+                                        />
+                                        {affectedImage && (
+                                            <div className="flex items-center gap-3 mt-2">
+                                                <img
+                                                    src={affectedImage}
+                                                    alt="Affected part preview"
+                                                    className="w-20 h-20 object-cover rounded-xl border-2 border-emerald-600 shadow-sm"
+                                                />
+                                                <div>
+                                                    <p className="text-xs text-emerald-800 font-semibold">Affected image ready</p>
+                                                    <p className="text-[10px] text-gray-600">{(affectedImage.length / 1024).toFixed(1)} KB (compressed)</p>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setAffectedImage(null);
+                                                            if (affectedFileInputRef.current) affectedFileInputRef.current.value = "";
+                                                        }}
+                                                        className="text-[10px] text-red-600 hover:text-red-800 font-semibold mt-1 cursor-pointer"
+                                                    >
+                                                        Remove
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -493,7 +584,7 @@ export default function DynamicCropForm() {
                             </div>
 
                             <div className="p-3 bg-emerald-900/80 rounded-xl text-[11px] text-emerald-200 border border-emerald-800">
-                                💡 <strong>Tip:</strong> Accurate data helps us give you better crop insights and alerts.
+                                💡 <strong>Tip:</strong> Accurate data helps us give you more better and accurate results  .
                             </div>
                         </div>
                     </div>
