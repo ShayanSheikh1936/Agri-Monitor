@@ -2,7 +2,7 @@ import { MenuIcon, Plus } from "lucide-react";
 import { NavLink, Outlet, useNavigate, Link } from "react-router-dom";
 import { useEffect, useLayoutEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc, arrayRemove, serverTimestamp } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { auth, fdb } from "../src/features/auth/firebase";
 import { useAuth } from "../src/features/auth/authContext";
@@ -17,6 +17,8 @@ export default function DashboardLayout() {
   const [userData, setUserData] = useState();
   const [showmenu, setshowmenu] = useState(false);
   const [tooltip, setTooltip] = useState(null);
+  const [cropToDelete, setCropToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -51,6 +53,28 @@ export default function DashboardLayout() {
     }
   };
 
+  // Delete crop from Firestore and update local state
+  const handleDeleteCrop = async () => {
+    if (!cropToDelete) return;
+    setDeleting(true);
+    try {
+      await updateDoc(doc(fdb, "crops", currentUser.uid), {
+        crops: arrayRemove(cropToDelete),
+        updatedAt: serverTimestamp(),
+      });
+      setUserCropData((prev) => ({
+        ...prev,
+        crops: prev.crops.filter((c) => c !== cropToDelete),
+      }));
+    } catch (error) {
+      console.error("Error deleting crop:", error);
+      alert("Failed to delete crop data.");
+    } finally {
+      setDeleting(false);
+      setCropToDelete(null);
+    }
+  };
+
   return (
     <>
       <div className="bg-[var(--bg)] w-full h-screen">
@@ -71,6 +95,10 @@ export default function DashboardLayout() {
                 userCropData.crops.map((crop, index) => (
                   <button
                     key={index}
+                    onClick={() => {
+                      setTooltip(null);
+                      setCropToDelete(crop);
+                    }}
                     className="shrink-0 w-10 h-10 rounded-full overflow-hidden border-2 border-[var(--text1)] hover:border-[#4a7028] transition-colors cursor-pointer bg-[var(--text1)]/20"
                     onMouseEnter={(e) => {
                       const rect = e.currentTarget.getBoundingClientRect();
@@ -98,6 +126,48 @@ export default function DashboardLayout() {
               >
                 {tooltip.name}
               </span>,
+              document.body
+            )}
+            {/* Delete Crop Confirmation Popup */}
+            {cropToDelete && createPortal(
+              <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-[rgba(0,0,0,0.5)]" onClick={() => !deleting && setCropToDelete(null)}>
+                <div
+                  className="bg-[var(--bg)] rounded-2xl shadow-2xl border-2 border-[var(--text1)] p-6 max-w-[320px] w-[90%] flex flex-col gap-4"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="w-12 h-12 rounded-full overflow-hidden border-2 border-[var(--text1)] bg-[var(--text1)]/20 shrink-0">
+                      {cropToDelete.cropImage ? (
+                        <img src={cropToDelete.cropImage} alt={cropToDelete.CropName} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="flex items-center justify-center w-full h-full text-sm font-bold text-[var(--text1)]">
+                          {(cropToDelete.CropName || "C").charAt(0).toUpperCase()}
+                        </span>
+                      )}
+                    </span>
+                    <p className="text-black text-[15px] leading-5">
+                      Delete this crop data? <br />
+                      <span className="font-bold text-[var(--text1)]">{cropToDelete.CropName || "This crop"}</span> will be removed permanently.
+                    </p>
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <button
+                      onClick={() => setCropToDelete(null)}
+                      disabled={deleting}
+                      className="px-4 py-2 rounded-xl bg-[rgba(0,0,0,0.1)] text-black text-[14px] font-semibold hover:bg-[rgba(0,0,0,0.2)] transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleDeleteCrop}
+                      disabled={deleting}
+                      className="px-4 py-2 rounded-xl bg-red-600 text-white text-[14px] font-semibold hover:bg-red-700 transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      {deleting ? "Deleting..." : "OK"}
+                    </button>
+                  </div>
+                </div>
+              </div>,
               document.body
             )}
             </div>
