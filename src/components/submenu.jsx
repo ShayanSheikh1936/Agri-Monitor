@@ -5,32 +5,32 @@ const SUBMENU = [
     {
         id:1,
         title:"Crop Health",
-        url:"/",
+        url:"/services/crop-health",
     },
     {
         id:2,
         title:"Smart Irrigation",
-        url:"/",
+        url:"/services/smart-irrigation",
     },
     {
         id:3,
         title:"Nutrients",
-        url:"/",
+        url:"/services/nutrients",
     },
     {
         id:4,
         title:"Fertilizers",
-        url:"/",
+        url:"/services/fertilizers",
     },
     {
         id:5,
         title:"Pesticides",
-        url:"/",
+        url:"/services/pesticides",
     },
     {
         id:6,
         title:"Soil Testing",
-        url:"/",
+        url:"/services/soil-testing",
     }
 ]
 export default function Submenu({getDatas}){
@@ -41,7 +41,7 @@ export default function Submenu({getDatas}){
                 {SUBMENU.map((item)=>{
                     return(
                         <li className={`px-2 py-5 ${item.id === 1 ? "bg-green-700 text-[var(--bg)] before:bg-[var(--bg)]" : "text-[var(--text1)] before:bg-green-700"} ${styles.navList} `} key={item.id}>
-                            <NavLink className={({isActive})=> isActive ? `${styles.Activenav} py-7`:""} className=" text-nowrap" to={item.url}>{item.title}</NavLink>
+                            <NavLink className={({isActive})=> isActive ? `${styles.Activenav} py-7 text-nowrap` : "text-nowrap"} to={item.url}>{item.title}</NavLink>
                         </li>
                     )
                 })}
