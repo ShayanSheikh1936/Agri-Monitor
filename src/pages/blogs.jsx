@@ -173,7 +173,7 @@ export default function Blogs() {
       </section>
 
       {/* Blog cards section */}
-      <section className="bg-[#F2DEC4] px-6 md:px-12 lg:px-20 py-16">
+      <section className="bg-[#F2DEC4]  py-16">
         {/* Section heading */}
         <div className="flex flex-col gap-3 mb-12">
           <div className="bg-[#679936] w-fit text-white p-4 pr-10 tracking-wider text-2xl md:text-4xl bebas-neue-regular rounded-r-full">
@@ -186,14 +186,14 @@ export default function Blogs() {
         </div>
 
         {/* Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 px-6 md:px-12 lg:px-5">
           {blogPosts.map((post) => (
             <BlogCard key={post.id} post={post} />
           ))}
         </div>
 
         {/* Newsletter CTA */}
-        <div className="mt-16 bg-gradient-to-r from-[#679936] to-[#4D7429] rounded-2xl p-8 md:p-12 flex flex-col md:flex-row items-center justify-between gap-6">
+        <div className="mx-6 md:mx-12 lg:mx-20 mt-16 bg-gradient-to-r from-[#679936] to-[#4D7429] rounded-2xl p-8 md:p-12 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="text-white text-center md:text-left">
             <h2 className="text-3xl md:text-4xl bebas-neue-regular tracking-wide">
               Never Miss an Update
