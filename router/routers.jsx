@@ -14,6 +14,11 @@ import Blogs from "../src/pages/blogs";
 import Features from "../src/pages/features";
 import Services from "../src/pages/services";
 import ServiceDetail from "../src/pages/serviceDetail";
+import { lazy, Suspense } from "react";
+
+// Lazy-loaded so the Crop Timeline page is code-split out of the initial bundle
+const CropTimelinePage = lazy(() => import("../src/dashboard/croptimeline"));
+
 export default function Routers() {
     const setup = createBrowserRouter([
         {
@@ -92,6 +97,19 @@ export default function Routers() {
                         },{
                             path: "/dashboard/disasteralerts",
                             element: <h1>pesticides</h1>,
+                        },{
+                            path: "/dashboard/croptimeline",
+                            element: (
+                                <Suspense
+                                    fallback={
+                                        <div className="flex-6 grid place-items-center h-screen">
+                                            <span className="w-10 h-10 rounded-full border-4 border-[var(--text1)] border-t-transparent animate-spin"></span>
+                                        </div>
+                                    }
+                                >
+                                    <CropTimelinePage />
+                                </Suspense>
+                            ),
                         }
                     ]
                 }

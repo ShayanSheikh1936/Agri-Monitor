@@ -1,0 +1,74 @@
+/*
+  shadcn/ui design tokens — isolated layer.
+  Kept separate from src/index.css so the existing global styles
+  (:root theme vars, .input-field, .inputLabel, .bebas-neue-regular)
+  are never overridden. Tokens are mapped to the existing Agri Monitor
+  palette: wheat background (#F2DEC4), brand green (#679936), panel (#D7E8C0).
+*/
+
+:root {
+  --radius: 0.75rem;
+
+  --background: #f2dec4;
+  --foreground: #26352a;
+
+  --card: #ffffff;
+  --card-foreground: #26352a;
+
+  --popover: #ffffff;
+  --popover-foreground: #26352a;
+
+  --primary: #679936;
+  --primary-foreground: #ffffff;
+
+  --secondary: #d7e8c0;
+  --secondary-foreground: #26352a;
+
+  --muted: #e9dfc8;
+  --muted-foreground: #75705f;
+
+  --accent: #d7e8c0;
+  --accent-foreground: #26352a;
+
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+
+  --border: #ddd3bc;
+  --input: #ddd3bc;
+  --ring: #679936;
+}
+
+/* Map CSS variables to Tailwind v4 utility names (bg-card, text-primary, etc.) */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  /* shadcn components rely on a default border color */
+  * {
+    border-color: var(--border);
+  }
+}

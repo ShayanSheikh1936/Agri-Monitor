@@ -180,6 +180,9 @@ export default function DashboardLayout() {
                 <NavLink to={"/dashboard/cropsuggestion"} className={({ isActive }) => isActive ? "bg-green-700 cursor-pointer  text-white text-[18px] px-2  py-3 rounded-2xl" : "bg-[rgba(0,0,0,0.1)] cursor-pointer text-black text-[18px] px-2  py-3 rounded-2xl"} >
                   <p>Crop Suggestion</p>
                 </NavLink>
+                <NavLink to={"/dashboard/croptimeline"} className={({ isActive }) => isActive ? "bg-green-700 cursor-pointer  text-white text-[18px] px-2  py-3 rounded-2xl" : "bg-[rgba(0,0,0,0.1)] cursor-pointer text-black text-[18px] px-2  py-3 rounded-2xl"} >
+                  <p>Crop Timeline</p>
+                </NavLink>
                 <p className="text-black font-semibold pl-2">Features</p>
                 <NavLink to={"/dashboard/weatherforecast"} className={({ isActive }) => isActive ? "bg-green-700 cursor-pointer  text-white text-[18px] px-2  py-3 rounded-2xl" : "bg-[rgba(0,0,0,0.1)] cursor-pointer text-black text-[18px] px-2  py-3 rounded-2xl"} >
                   <p>Weather Forecast</p>
