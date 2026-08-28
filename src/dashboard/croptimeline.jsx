@@ -119,7 +119,7 @@ export default function CropTimelinePage() {
       {/* Main grid */}
       <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3">
         <div className="grid content-start gap-4 xl:col-span-2">
-          <CropTimeline crop={crop} />
+          <CropTimeline crop={crop} cropIndex={safeIndex} />
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <TodayTasks crop={crop} />
             <TomorrowTasks crop={crop} />

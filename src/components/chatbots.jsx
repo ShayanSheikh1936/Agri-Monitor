@@ -413,7 +413,7 @@ export default function Chatbot({ userinfo }) {
                   src={
                     msg.role === "user"
                       ? "https://cdn-icons-png.flaticon.com/512/149/149071.png"
-                      : "logo1.svg"
+                      : "/logo1.svg"
                   }
                   alt=""
                 />
@@ -469,7 +469,7 @@ export default function Chatbot({ userinfo }) {
           {loading && (
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full grid place-items-center">
-                <img src="logo1.svg" alt="" />
+                <img src="/logo1.svg" alt="" />
               </div>
 
               <div className="flex gap-2">

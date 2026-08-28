@@ -205,7 +205,7 @@ export default function DashboardLayout() {
             </div>
             <div className="mb-1 flex gap-2 items-center border-t-1 border-[var(--text1)] pt-2 justify-between">
               <div className="flex gap-2 items-center">
-                <img data-src="https://cdn-icons-png.flaticon.com/512/149/149071.png" loading="lazy" src={userData?.displayphoto ? userData.displayphoto : "https://cdn-icons-png.flaticon.com/512/149/149071.png"} alt="profile image" className="w-10 h-10 rounded-full" />
+                <img data-src="https://cdn-icons-png.flaticon.com/512/149/149071.png" src={userData?.displayphoto ? userData.displayphoto : "https://cdn-icons-png.flaticon.com/512/149/149071.png"} alt="profile image" className="w-10 h-10 rounded-full" />
                 <span className="flex flex-col leading-4 ">
                   <p className="text-black capitalize">{userData?.fullname}</p>
                   <p className="text-[10px] text-black lowercase">{userData?.EmailAddress}</p>

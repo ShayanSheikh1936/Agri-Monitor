@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
+import { Link } from "react-router-dom";
 import { doc, setDoc, serverTimestamp, arrayUnion } from "firebase/firestore";
 import { fdb } from "../features/auth/firebase";
 import { useAuth } from "../features/auth/authContext";
 import Backnavigate from "../components/BackNavigate";
+import { generateTimelineForNewCrop } from "../services/timelineGenerator";
 
 export default function DynamicCropForm() {
     const { currentUser } = useAuth();
@@ -14,6 +16,8 @@ export default function DynamicCropForm() {
     const [calculatedAge, setCalculatedAge] = useState(null);
     const [cropImage, setCropImage] = useState(null);
     const [affectedImage, setAffectedImage] = useState(null);
+    const [timelineStatus, setTimelineStatus] = useState(null); // null | generating | ready | failed
+    const [lastSavedCrop, setLastSavedCrop] = useState(null);
     const fileInputRef = useRef(null);
     const affectedFileInputRef = useRef(null);
 
@@ -149,6 +153,16 @@ export default function DynamicCropForm() {
             }, { merge: true });
 
             setSuccessMsg("🎉 Crop successfully registered with smart tracking!");
+
+            // Personalized timeline generation — fire-and-forget.
+            // It must NEVER block or break crop creation: errors are only
+            // reflected in the status banner with a retry option.
+            setLastSavedCrop(cropEntry);
+            setTimelineStatus("generating");
+            generateTimelineForNewCrop(currentUser.uid, cropEntry)
+                .then((result) => setTimelineStatus(result.ok ? "ready" : "failed"))
+                .catch(() => setTimelineStatus("failed"));
+
             reset({ HealthStatus: "Healthy" });
             setGpsCoords(null);
             setCalculatedAge(null);
@@ -189,6 +203,44 @@ export default function DynamicCropForm() {
                     {successMsg && (
                         <div className="mb-6 p-4 bg-emerald-600 text-white text-center text-sm font-semibold rounded-2xl shadow-md">
                             {successMsg}
+                        </div>
+                    )}
+
+                    {/* Timeline generation status — crop save is never affected by this */}
+                    {timelineStatus && (
+                        <div className="mb-6 p-4 rounded-2xl shadow-md text-center text-sm font-semibold flex flex-col items-center gap-2 bg-[#D7E8C0] border border-[var(--text1)] text-black">
+                            {timelineStatus === "generating" && (
+                                <span className="flex items-center gap-2">
+                                    <span className="w-4 h-4 rounded-full border-2 border-[var(--text1)] border-t-transparent animate-spin" />
+                                    Generating your crop's personalized timeline in the background…
+                                </span>
+                            )}
+                            {timelineStatus === "ready" && (
+                                <>
+                                    <span>✅ Personalized timeline is ready!</span>
+                                    <Link to="/dashboard/croptimeline" className="underline text-[var(--text1)] font-bold">
+                                        View Crop Timeline →
+                                    </Link>
+                                </>
+                            )}
+                            {timelineStatus === "failed" && (
+                                <>
+                                    <span>⚠️ Timeline generation failed — your crop is saved safely.</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            if (!lastSavedCrop) return;
+                                            setTimelineStatus("generating");
+                                            generateTimelineForNewCrop(currentUser.uid, lastSavedCrop)
+                                                .then((result) => setTimelineStatus(result.ok ? "ready" : "failed"))
+                                                .catch(() => setTimelineStatus("failed"));
+                                        }}
+                                        className="bg-[var(--text1)] hover:bg-emerald-800 text-white text-xs font-semibold px-4 py-2 rounded-xl cursor-pointer"
+                                    >
+                                        Retry Timeline Generation
+                                    </button>
+                                </>
+                            )}
                         </div>
                     )}
 

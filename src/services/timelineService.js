@@ -29,8 +29,8 @@ import {
   serverTimestamp,
   writeBatch,
 } from "firebase/firestore";
-import { fdb } from "../features/auth/firebase";
-import { getSowingDate, getHealthStatus } from "../lib/cropUtils";
+import { fdb } from "../features/auth/firebase.js";
+import { getSowingDate, getHealthStatus } from "../lib/cropUtils.js";
 
 // -----------------------------------------------------------------------------
 // Constants
@@ -350,7 +350,7 @@ export async function writeTimelineEvents(uid, cropId, events, { replace = false
     const chunk = normalized.slice(i, i + MAX_BATCH_OPS);
     const batch = writeBatch(fdb);
     chunk.forEach((event) => {
-      batch.setDoc(doc(eventsCollectionRef(uid, cropId)), event);
+      batch.set(doc(eventsCollectionRef(uid, cropId)), event);
     });
     await batch.commit();
   }
@@ -392,6 +392,10 @@ export async function deleteAllEvents(uid, cropId) {
  *   limitTo           — page size (default 30)
  *   cursor            — pass `nextCursor` from a previous call to paginate
  * Returns { events, nextCursor } — nextCursor is null when exhausted.
+ *
+ * INDEX-FREE BY DESIGN: queries never combine filters/ordering across
+ * different fields, so no composite Firestore indexes are required.
+ * Ordering ties are resolved client-side by dayNumber.
  */
 export async function getTimelineEvents(
   uid,
@@ -402,26 +406,46 @@ export async function getTimelineEvents(
   assertCropId(cropId);
 
   const constraints = [];
+  let clientDateFilter = null;
+
   if (status) {
+    // Equality-only filter on one field — single-field index suffices.
     assertEventStatus(status);
     constraints.push(where("status", "==", status));
+    if (startDate || endDate) clientDateFilter = { startDate, endDate };
+  } else {
+    // Range filter + ordering on the SAME field — single-field index suffices.
+    if (startDate) constraints.push(where("date", ">=", startDate));
+    if (endDate) constraints.push(where("date", "<=", endDate));
+    constraints.push(orderBy("date", "asc"));
+    if (cursor) constraints.push(startAfter(cursor));
   }
-  if (startDate) constraints.push(where("date", ">=", startDate));
-  if (endDate) constraints.push(where("date", "<=", endDate));
-  constraints.push(orderBy("date", "asc"), orderBy("dayNumber", "asc"));
   constraints.push(limit(limitTo));
 
-  const q = query(
-    eventsCollectionRef(uid, cropId),
-    ...constraints,
-    ...(cursor ? [startAfter(cursor)] : [])
+  const snap = await getDocs(
+    query(eventsCollectionRef(uid, cropId), ...constraints)
+  );
+  let events = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+  if (clientDateFilter) {
+    events = events.filter(
+      (e) =>
+        (!clientDateFilter.startDate || (e.date ?? "") >= clientDateFilter.startDate) &&
+        (!clientDateFilter.endDate || (e.date ?? "") <= clientDateFilter.endDate)
+    );
+  }
+  events.sort(
+    (a, b) =>
+      (a.date ?? "").localeCompare(b.date ?? "") ||
+      (a.dayNumber ?? 0) - (b.dayNumber ?? 0)
   );
 
-  const snap = await getDocs(q);
-  const events = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
   return {
     events,
-    nextCursor: snap.docs.length === limitTo ? snap.docs[snap.docs.length - 1] : null,
+    nextCursor:
+      !status && snap.docs.length === limitTo
+        ? snap.docs[snap.docs.length - 1]
+        : null,
   };
 }
 
@@ -438,12 +462,14 @@ export async function getTodayEvents(uid, cropId) {
 
 /** Next N upcoming events from today onward — the "Upcoming" panel. */
 export async function getUpcomingEvents(uid, cropId, count = 7) {
+  const today = toDateString();
   const { events } = await getTimelineEvents(uid, cropId, {
-    startDate: toDateString(),
     status: "upcoming",
-    limitTo: count,
+    limitTo: Math.max(count * 4, 30),
   });
-  return events;
+  return events
+    .filter((e) => !e.date || e.date >= today)
+    .slice(0, count);
 }
 
 /**
