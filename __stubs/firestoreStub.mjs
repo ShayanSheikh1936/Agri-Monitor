@@ -10,7 +10,14 @@ export const __reset = () => {
   ts = 0;
 };
 
-export const doc = (db, ...segs) => ({ path: segs.join("/") });
+export const doc = (db, ...segs) => {
+  // doc(collectionRef) → auto-id document, like the real SDK.
+  if (db && typeof db === "object" && db.path) {
+    if (segs.length === 0) return { path: `${db.path}/autodoc${++autoId}` };
+    return { path: `${db.path}/${segs.join("/")}` };
+  }
+  return { path: segs.join("/") };
+};
 export const collection = (parent, name) => ({
   path: `${parent.path}/${name}`,
 });
@@ -56,6 +63,10 @@ export async function addDoc(col, data) {
   return { id };
 }
 
+export async function deleteDoc(ref) {
+  store.delete(ref.path);
+}
+
 function compare(a, b, f, dir) {
   const av = a.data()[f];
   const bv = b.data()[f];
@@ -68,7 +79,10 @@ function compare(a, b, f, dir) {
   return dir === "desc" ? -cmp : cmp;
 }
 
-export async function getDocs({ col, constraints }) {
+export async function getDocs(arg) {
+  // Accepts query(col, ...) or a bare collection ref.
+  const col = arg.col ?? arg;
+  const constraints = arg.constraints ?? [];
   const prefix = `${col.path}/`;
   let docs = [...store.entries()]
     .filter(([k]) => k.startsWith(prefix))

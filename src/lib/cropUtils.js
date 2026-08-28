@@ -70,7 +70,7 @@ export function localDateISO(offsetDays = 0) {
 }
 
 // Firestore Timestamp / Date / number / iso-string -> epoch ms (or null).
-function toEpochMs(value) {
+export function toEpochMs(value) {
   if (!value) return null;
   if (typeof value.toMillis === "function") return value.toMillis();
   if (value instanceof Date) return value.getTime();

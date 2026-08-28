@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { analyzeAndSaveCropImage } from "../../services/timelineGenerator";
+import { analyzeAndSaveCropImage, reviewCropTimeline } from "../../services/timelineGenerator";
 
 // =============================================================================
 // Crop Image Analysis — reuse of the existing base64 storage pattern and the
@@ -126,6 +126,17 @@ export default function CropImageAnalysis({ crop, uid, cropId, onAnalyzed }) {
       }
       setResult(outcome.analysis);
       onAnalyzed?.(); // refresh the recommendations card
+
+      // A new AI image analysis is a meaningful change signal → background
+      // timeline review (fire-and-forget, 10-minute cooldown applies).
+      const a = outcome.analysis;
+      reviewCropTimeline(uid, cropId, {
+        trigger: "image_analysis",
+        causedBy: outcome.imageId,
+        triggerDetail: `New image analysis: ${a.possibleIssue ?? "no clear issue identified"}${a.identifiedCrop ? ` (identified: ${a.identifiedCrop})` : ""}${a.recommendedActions?.length ? ` — suggested: ${a.recommendedActions[0]}` : ""}`,
+      })
+        .catch(() => {})
+        .finally(() => onAnalyzed?.());
     } catch (err) {
       setError(err.message ?? "Image analysis failed. Please try again.");
     } finally {

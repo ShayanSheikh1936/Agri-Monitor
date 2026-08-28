@@ -14,7 +14,7 @@
 
 import { doc, getDoc } from "firebase/firestore";
 import { fdb } from "../features/auth/firebase.js";
-import { cropKey } from "../lib/cropUtils.js";
+import { cropKey, toEpochMs } from "../lib/cropUtils.js";
 import * as timelineService from "./timelineService.js";
 import { buildCropAIContext } from "./aiContextBuilder.js";
 
@@ -25,6 +25,8 @@ export const GENERATION_ERROR_CODES = {
   AI_TIMEOUT: "AI_TIMEOUT",
   INVALID_RESPONSE: "INVALID_RESPONSE",
   SAVE_FAILED: "SAVE_FAILED",
+  NO_TIMELINE: "NO_TIMELINE",
+  REVIEW_COOLDOWN: "REVIEW_COOLDOWN",
 };
 
 export class TimelineGenerationError extends Error {
@@ -800,6 +802,378 @@ export async function analyzeAndSaveCropImage(uid, cropId, options = {}) {
       error: {
         code: GENERATION_ERROR_CODES.SAVE_FAILED,
         message: err.message ?? "The analysis could not be saved.",
+      },
+    };
+  }
+}
+
+// =============================================================================
+// Intelligent timeline reviews — surgical updates to FUTURE events only.
+// Never regenerates the timeline; completed/skipped history is immutable.
+// =============================================================================
+
+const REVIEW_COOLDOWN_MS = 10 * 60 * 1000; // avoid AI spam on rapid logging
+const MAX_REVIEW_UPDATES = 20;
+const MAX_REVIEW_ADDITIONS = 10;
+// A review may move an event to any of these — never to completed/skipped.
+const REVIEW_ALLOWED_STATUSES = ["upcoming", "today", "needs_attention", "postponed"];
+
+export function buildTimelineReviewPrompt(context, { upcoming, recentCompleted, trigger, triggerDetail }) {
+  const p = context.profile;
+  const provided = (v) => (v === null || v === undefined || v === "" ? "not provided" : String(v));
+
+  const lines = [
+    "You are an expert agronomist for the Agri Monitor farm dashboard.",
+    "You are REVIEWING an existing personalized crop timeline after new information arrived.",
+    "Decide whether future events must change. Respond with STRICT JSON only: no markdown, no commentary.",
+    "",
+    "CROP PROFILE:",
+    `- Crop name: ${provided(p.name)}`,
+    `- Variety / seed type: ${provided(p.varietySeedType)}`,
+    `- Sowing date (Day 1): ${context.hasSowingDate ? context.sowingDateISO : "not provided"}`,
+    `- Plant age today: ${context.plantAgeDays != null ? `${context.plantAgeDays} days` : "unknown"}`,
+    `- Soil type: ${provided(p.soil)}`,
+    `- Irrigation system: ${provided(p.irrigation)}`,
+    `- Reported condition: ${provided(p.currentCondition)}`,
+  ];
+
+  if (context.recentActivities?.length) {
+    lines.push("", "RECENT FIELD ACTIVITIES (user-logged, newest first):");
+    for (const a of context.recentActivities) {
+      const qty = a.quantity ? ` ${a.quantity}${a.unit ? " " + a.unit : ""}` : "";
+      const note = a.notes ? ` — ${a.notes}` : "";
+      lines.push(`- ${a.date ?? "undated"}: ${a.type}${qty}${note}`);
+    }
+  }
+
+  if (context.weather?.ok) {
+    lines.push("", "WEATHER OUTLOOK (informational only):");
+    for (const d of context.weather.nextDays) {
+      lines.push(`- ${d.date}: ${d.condition}, ${d.tempMinC}–${d.tempMaxC}°C, rain ${d.precipitationSumMm ?? 0}mm`);
+    }
+  }
+
+  lines.push(
+    "",
+    `NEW INFORMATION (trigger: ${trigger}):`,
+    triggerDetail ? String(triggerDetail).slice(0, 500) : "No extra detail provided."
+  );
+
+  if (recentCompleted?.length) {
+    lines.push("", "COMPLETED HISTORY (context only — these ids are IMMUTABLE, never reference them in eventUpdates):");
+    for (const e of recentCompleted) {
+      lines.push(`- [DONE] ${e.date}: Day ${e.dayNumber} ${e.title}`);
+    }
+  }
+
+  lines.push("", "UPCOMING EVENTS (today and future — the ONLY events you may update, by exact id):");
+  for (const e of upcoming) {
+    lines.push(
+      `- id="${e.id}" | ${e.date} | Day ${e.dayNumber} | ${e.title} | status=${e.status} | priority=${e.priority}${e.description ? ` | ${e.description}` : ""}`
+    );
+  }
+
+  lines.push(
+    "",
+    "RULES:",
+    "1. Change ONLY what the new information genuinely affects. If nothing meaningful changes, set changesNeeded=false.",
+    "2. eventUpdates may reference ONLY ids listed under UPCOMING EVENTS. Never touch completed history.",
+    "3. New dates must be today or later, format YYYY-MM-DD, and consistent with the sowing anchor when known.",
+    '4. newStatus must be one of "upcoming", "today", "needs_attention", "postponed" — never "completed".',
+    "5. Use uncertainty language in reasons/descriptions (likely, possible, appears consistent with).",
+    "6. Never invent facts that were not provided. SAFETY: never prescribe exact chemical product names or dosages.",
+    "7. newEvents are short follow-ups caused by the trigger (e.g. re-check condition, resume monitoring). Keep at most 3, dated today or later.",
+    "",
+    "Return exactly this JSON object shape:",
+    '{"changesNeeded":true,"confidence":0.6,"reason":"one sentence why","newObservation":"one sentence observation or null","recommendedFollowUp":"one sentence or null","eventUpdates":[{"id":"event id","changeReason":"why","newDate":null,"newTitle":null,"newDescription":null,"newStatus":"needs_attention","newPriority":null,"addTasks":["check crop condition"]}],"newEvents":[{"dayNumber":12,"date":"YYYY-MM-DD","stage":"Monitoring","title":"short title","description":"under 15 words","tasks":["task"],"priority":"medium","isEstimated":true}]}'
+  );
+
+  return lines.join("\n");
+}
+
+/**
+ * Validates a parsed AI timeline-review response against the real upcoming
+ * events. Throws TimelineGenerationError when unusable; otherwise returns a
+ * clean, apply-ready review object.
+ */
+export function validateTimelineReviewResponse(raw, { upcomingEvents, todayISO }) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new TimelineGenerationError(
+      GENERATION_ERROR_CODES.INVALID_RESPONSE,
+      "AI review response is not a JSON object."
+    );
+  }
+
+  const warnings = [];
+  const byId = new Map((upcomingEvents ?? []).map((e) => [e.id, e]));
+
+  let confidence = raw.confidence;
+  if (typeof confidence === "string") confidence = Number(confidence);
+  if (typeof confidence === "number" && Number.isFinite(confidence)) {
+    if (confidence > 1 && confidence <= 100) confidence = confidence / 100;
+    confidence = Math.min(Math.max(confidence, 0), 1);
+  } else {
+    confidence = null;
+  }
+
+  const reason =
+    typeof raw.reason === "string" && raw.reason.trim()
+      ? raw.reason.trim().slice(0, 500)
+      : "AI timeline review";
+  const strOrNull = (v, cap = 300) =>
+    typeof v === "string" && v.trim() ? v.trim().slice(0, cap) : null;
+
+  const changesNeeded = Boolean(raw.changesNeeded);
+  const updates = [];
+
+  for (const u of (Array.isArray(raw.eventUpdates) ? raw.eventUpdates : []).slice(0, MAX_REVIEW_UPDATES)) {
+    if (!u || typeof u !== "object") continue;
+    const target = u.id ? byId.get(u.id) : null;
+    if (!target) {
+      warnings.push(`Ignored update for unknown event id "${u.id}".`);
+      continue;
+    }
+    if (timelineService.PROTECTED_EVENT_STATUSES.includes(target.status)) {
+      warnings.push(`Refused update to protected (${target.status}) event ${u.id}.`);
+      continue;
+    }
+
+    const patch = {};
+    if (typeof u.newDate === "string") {
+      if (DATE_RE.test(u.newDate) && u.newDate >= todayISO) patch.date = u.newDate;
+      else warnings.push(`Ignored invalid/past newDate "${u.newDate}" for event ${u.id}.`);
+    }
+    if (typeof u.newTitle === "string" && u.newTitle.trim()) {
+      patch.title = u.newTitle.trim().slice(0, 120);
+    }
+    if (typeof u.newDescription === "string" && u.newDescription.trim()) {
+      patch.description = u.newDescription.trim().slice(0, 300);
+    }
+    if (typeof u.newStatus === "string") {
+      const s = u.newStatus.toLowerCase().trim();
+      if (REVIEW_ALLOWED_STATUSES.includes(s)) patch.status = s;
+      else warnings.push(`Ignored disallowed newStatus "${u.newStatus}" for event ${u.id}.`);
+    }
+    if (typeof u.newPriority === "string") {
+      const prio = PRIORITY_MAP[u.newPriority.toLowerCase().trim()];
+      if (prio) patch.priority = prio;
+    }
+    const addTasks = Array.isArray(u.addTasks)
+      ? u.addTasks
+          .filter((t) => typeof t === "string" && t.trim())
+          .map((t) => t.trim().slice(0, 120))
+          .slice(0, 5)
+      : [];
+    if (addTasks.length) patch.addTasks = addTasks;
+
+    if (Object.keys(patch).length > 0) {
+      updates.push({
+        id: u.id,
+        patch,
+        reason: strOrNull(u.changeReason) ?? reason,
+      });
+    }
+  }
+
+  const additions = [];
+  for (const item of (Array.isArray(raw.newEvents) ? raw.newEvents : []).slice(0, MAX_REVIEW_ADDITIONS)) {
+    if (!item || typeof item !== "object") continue;
+    const title = typeof item.title === "string" ? item.title.trim() : "";
+    if (!title) {
+      warnings.push("Skipped a new event without a title.");
+      continue;
+    }
+    const dayNumber = Math.round(Number(item.dayNumber));
+    if (!Number.isInteger(dayNumber) || dayNumber < 1) {
+      warnings.push(`Skipped new event "${title}" with invalid dayNumber.`);
+      continue;
+    }
+    const date =
+      typeof item.date === "string" && DATE_RE.test(item.date) && item.date >= todayISO
+        ? item.date
+        : null;
+    if (!date) {
+      warnings.push(`Skipped new event "${title}": missing/past date.`);
+      continue;
+    }
+    const priorityRaw = typeof item.priority === "string" ? item.priority.toLowerCase() : "";
+    additions.push({
+      dayNumber,
+      date,
+      stage: typeof item.stage === "string" ? item.stage.trim() : "Monitoring",
+      title: title.slice(0, 120),
+      description: typeof item.description === "string" ? item.description.slice(0, 300) : "",
+      tasks: normalizeTasks(item.tasks).slice(0, 3),
+      priority: PRIORITY_MAP[priorityRaw] ?? "medium",
+      status: "upcoming",
+      isEstimated: true,
+      aiGenerated: true,
+    });
+  }
+
+  const effectiveChangesNeeded = changesNeeded && (updates.length > 0 || additions.length > 0);
+  if (changesNeeded && !effectiveChangesNeeded) {
+    warnings.push("AI said changes were needed but provided no valid updates; treated as no change.");
+  }
+
+  return {
+    changesNeeded: effectiveChangesNeeded,
+    confidence,
+    reason,
+    newObservation: strOrNull(raw.newObservation),
+    recommendedFollowUp: strOrNull(raw.recommendedFollowUp),
+    updates,
+    additions,
+    warnings,
+  };
+}
+
+/**
+ * Reviews the persisted timeline after meaningful new information and applies
+ * ONLY approved future-event changes. NEVER throws — returns { ok, ... }.
+ *
+ * options: trigger, triggerDetail, causedBy (activity/analysis/image id),
+ *          timeoutMs, force (bypass the 10-minute cooldown).
+ */
+export async function reviewCropTimeline(uid, cropId, options = {}) {
+  const {
+    trigger = "manual",
+    triggerDetail = null,
+    causedBy = null,
+    timeoutMs = DEFAULT_TIMEOUT_MS,
+    force = false,
+  } = options;
+
+  if (!uid || !cropId) {
+    return {
+      ok: false,
+      error: {
+        code: GENERATION_ERROR_CODES.MISSING_CONTEXT,
+        message: "An authenticated user and crop are required.",
+      },
+    };
+  }
+
+  // ---- Existing timeline required — reviews never create timelines ----
+  let meta;
+  try {
+    meta = await timelineService.getTimeline(uid, cropId);
+  } catch (err) {
+    return {
+      ok: false,
+      error: { code: GENERATION_ERROR_CODES.NO_TIMELINE, message: err.message },
+    };
+  }
+  if (!meta || !(Number(meta.eventCount ?? 0) > 0)) {
+    return {
+      ok: false,
+      error: {
+        code: GENERATION_ERROR_CODES.NO_TIMELINE,
+        message: "No generated timeline to review yet.",
+      },
+    };
+  }
+
+  // ---- Cooldown: meaningful-change reviews, not per-keystroke AI calls ----
+  const lastReviewMs = toEpochMs(meta.lastReviewAt);
+  if (!force && lastReviewMs && Date.now() - lastReviewMs < REVIEW_COOLDOWN_MS) {
+    return {
+      ok: false,
+      error: {
+        code: GENERATION_ERROR_CODES.REVIEW_COOLDOWN,
+        message: "This timeline was reviewed recently — try again in a few minutes.",
+      },
+    };
+  }
+
+  // ---- Upcoming events (update candidates) + completed context ----
+  let upcoming = [];
+  let recentCompleted = [];
+  try {
+    ({ upcoming, recentCompleted } = await timelineService.getEventsForReview(uid, cropId));
+  } catch (err) {
+    return {
+      ok: false,
+      error: {
+        code: GENERATION_ERROR_CODES.AI_REQUEST_FAILED,
+        message: err.message ?? "Timeline events could not be read.",
+      },
+    };
+  }
+  if (upcoming.length === 0) {
+    return {
+      ok: false,
+      error: {
+        code: GENERATION_ERROR_CODES.NO_TIMELINE,
+        message: "No upcoming events left to review.",
+      },
+    };
+  }
+
+  // ---- Context + AI review ----
+  let validated;
+  try {
+    const apiUrl = resolveApiUrl(options);
+    if (!apiUrl) {
+      throw new TimelineGenerationError(
+        GENERATION_ERROR_CODES.MISSING_API_URL,
+        "VITE_API_URL is missing. Check your .env.local file."
+      );
+    }
+    const context = await buildCropAIContext(cropId, { uid });
+    const prompt = buildTimelineReviewPrompt(context, {
+      upcoming,
+      recentCompleted,
+      trigger,
+      triggerDetail,
+    });
+    const reply = await callAIBackend(apiUrl, prompt, {
+      location: context.locationString,
+      timeoutMs,
+    });
+    const raw = extractJsonFromReply(reply);
+    validated = validateTimelineReviewResponse(raw, {
+      upcomingEvents: upcoming,
+      todayISO: toISO(new Date()),
+    });
+  } catch (err) {
+    return {
+      ok: false,
+      error: {
+        code: err.code ?? GENERATION_ERROR_CODES.AI_REQUEST_FAILED,
+        message: err.message ?? "Timeline review failed.",
+      },
+    };
+  }
+
+  // ---- Apply (also records a review doc when nothing changed — audit) ----
+  try {
+    const applied = await timelineService.applyTimelineReview(uid, cropId, {
+      trigger,
+      causedBy,
+      reason: validated.reason,
+      confidence: validated.confidence,
+      changesNeeded: validated.changesNeeded,
+      newObservation: validated.newObservation,
+      recommendedFollowUp: validated.recommendedFollowUp,
+      updates: validated.changesNeeded ? validated.updates : [],
+      additions: validated.changesNeeded ? validated.additions : [],
+    });
+    return {
+      ok: true,
+      changesNeeded: validated.changesNeeded,
+      reason: validated.reason,
+      newObservation: validated.newObservation,
+      recommendedFollowUp: validated.recommendedFollowUp,
+      warnings: validated.warnings,
+      ...applied,
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      error: {
+        code: GENERATION_ERROR_CODES.SAVE_FAILED,
+        message: err.message ?? "The review could not be saved.",
       },
     };
   }

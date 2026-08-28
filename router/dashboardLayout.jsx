@@ -6,6 +6,8 @@ import { doc, getDoc, updateDoc, arrayRemove, serverTimestamp } from "firebase/f
 import { signOut } from "firebase/auth";
 import { auth, fdb } from "../src/features/auth/firebase";
 import { useAuth } from "../src/features/auth/authContext";
+import { deleteCropTimeline } from "../src/services/timelineService";
+import { cropKey } from "../src/lib/cropUtils";
 import Footer from "../src/components/footer";
 import Chatbot from "../src/components/chatbots";
 import ToggleSwitch from "../src/components/toogleswitch";
@@ -18,6 +20,7 @@ export default function DashboardLayout() {
   const [showmenu, setshowmenu] = useState(false);
   const [tooltip, setTooltip] = useState(null);
   const [cropToDelete, setCropToDelete] = useState(null);
+  const [cropDeleteIndex, setCropDeleteIndex] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
@@ -66,12 +69,21 @@ export default function DashboardLayout() {
         ...prev,
         crops: prev.crops.filter((c) => c !== cropToDelete),
       }));
+      // Also remove this crop's timeline data (timelineData/{uid}/crops/{cropId}/**).
+      // Only this crop's timeline subtree is deleted — other crops and user data
+      // are untouched. Best-effort: the profile delete above already succeeded.
+      if (cropDeleteIndex !== null) {
+        deleteCropTimeline(currentUser.uid, cropKey(cropToDelete, cropDeleteIndex)).catch((err) =>
+          console.error("Timeline cleanup failed:", err)
+        );
+      }
     } catch (error) {
       console.error("Error deleting crop:", error);
       alert("Failed to delete crop data.");
     } finally {
       setDeleting(false);
       setCropToDelete(null);
+      setCropDeleteIndex(null);
     }
   };
 
@@ -98,6 +110,7 @@ export default function DashboardLayout() {
                     onClick={() => {
                       setTooltip(null);
                       setCropToDelete(crop);
+                      setCropDeleteIndex(index);
                     }}
                     className="shrink-0 w-10 h-10 rounded-full overflow-hidden border-2 border-[var(--text1)] hover:border-[#4a7028] transition-colors cursor-pointer bg-[var(--text1)]/20"
                     onMouseEnter={(e) => {

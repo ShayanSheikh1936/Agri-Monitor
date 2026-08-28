@@ -19,6 +19,7 @@ import {
   setDoc,
   updateDoc,
   addDoc,
+  deleteDoc,
   collection,
   query,
   where,
@@ -44,6 +45,7 @@ export const TIMELINE_COLLECTIONS = {
   observations: "observations",
   analyses: "analyses",
   images: "images",
+  reviews: "reviews",
 };
 
 export const EVENT_STATUSES = [
@@ -69,6 +71,31 @@ export const TIMELINE_SOURCE = {
 };
 
 export const IMAGE_PURPOSES = ["crop", "affected", "analysis", "progress"];
+
+// Historical event states that an AI timeline review may NEVER modify.
+export const PROTECTED_EVENT_STATUSES = ["completed", "skipped"];
+
+// What can cause an intelligent timeline review.
+export const REVIEW_TRIGGERS = [
+  "activity",
+  "image_analysis",
+  "observation",
+  "condition_change",
+  "weather",
+  "profile_change",
+  "manual",
+];
+
+// Activity types meaningful enough to trigger a timeline review.
+export const REVIEW_TRIGGERING_ACTIVITIES = [
+  "planting",
+  "irrigation",
+  "fertilizer",
+  "pesticide",
+  "pest_observation",
+  "disease_observation",
+  "harvesting",
+];
 
 // User-loggable field activities (crop activity tracking).
 export const ACTIVITY_TYPES = [
@@ -136,6 +163,10 @@ export function analysesCollectionRef(uid, cropId) {
 
 export function imagesCollectionRef(uid, cropId) {
   return collection(cropTimelineRef(uid, cropId), TIMELINE_COLLECTIONS.images);
+}
+
+export function reviewsCollectionRef(uid, cropId) {
+  return collection(cropTimelineRef(uid, cropId), TIMELINE_COLLECTIONS.reviews);
 }
 
 // -----------------------------------------------------------------------------
@@ -537,6 +568,189 @@ export async function updateEventStatus(uid, cropId, eventId, status) {
 }
 
 // -----------------------------------------------------------------------------
+// Intelligent timeline reviews — surgical updates only.
+// Completed/skipped events are NEVER modified; every applied change keeps a
+// before/after audit trail on the event itself plus a review record.
+// -----------------------------------------------------------------------------
+
+const MAX_EVENT_HISTORY = 10;
+const MAX_REVIEW_TASKS_TOTAL = 12;
+
+/**
+ * Today's and future events (candidates the AI may update) plus the most
+ * recent completed events (context only — immutable). Bounded reads.
+ */
+export async function getEventsForReview(uid, cropId) {
+  const today = toDateString();
+  const [{ events: upcoming }, { events: completed }] = await Promise.all([
+    getTimelineEvents(uid, cropId, { startDate: today, limitTo: 40 }),
+    getTimelineEvents(uid, cropId, { status: "completed", limitTo: 20 }),
+  ]);
+  const recentCompleted = completed
+    .filter((e) => e.date)
+    .sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""))
+    .slice(0, 5);
+  return { upcoming, recentCompleted };
+}
+
+/**
+ * Updates ONE non-protected event and records what/why/when on the event
+ * itself (`history`). Returns { applied, reason } instead of throwing for
+ * missing/protected targets so reviews stay non-fatal per event.
+ */
+export async function updateEventWithAudit(uid, cropId, eventId, patch, audit = {}) {
+  assertUid(uid);
+  assertCropId(cropId);
+  if (!eventId) return { applied: false, reason: "missing" };
+
+  const ref = doc(eventsCollectionRef(uid, cropId), eventId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return { applied: false, reason: "missing" };
+
+  const current = snap.data();
+  if (PROTECTED_EVENT_STATUSES.includes(current.status)) {
+    return { applied: false, reason: "protected" };
+  }
+
+  const { addTasks, ...fields } = patch ?? {};
+  const clean = stripUndefined(fields);
+
+  // Only record fields that actually change.
+  const changes = {};
+  const write = {};
+  for (const [k, v] of Object.entries(clean)) {
+    if (JSON.stringify(current[k] ?? null) !== JSON.stringify(v)) {
+      changes[k] = { from: current[k] ?? null, to: v };
+      write[k] = v;
+    }
+  }
+
+  // Appended tasks (never removes existing task state).
+  let tasksWritten = false;
+  if (Array.isArray(addTasks) && addTasks.length > 0) {
+    const extra = addTasks
+      .filter((t) => typeof t === "string" && t.trim())
+      .map((t) => ({ title: t.trim(), done: false }));
+    if (extra.length > 0) {
+      const tasks = [...(current.tasks ?? []), ...extra].slice(-MAX_REVIEW_TASKS_TOTAL);
+      write.tasks = tasks;
+      changes.tasks = { from: current.tasks ?? [], to: tasks };
+      tasksWritten = true;
+    }
+  }
+
+  if (Object.keys(write).length === 0) {
+    return { applied: false, reason: "no_change" };
+  }
+
+  // Audit entry: what changed, why, when, and what caused it.
+  const entry = stripUndefined({
+    at: serverTimestamp(),
+    trigger: audit.trigger ?? "manual",
+    reason: audit.reason ? String(audit.reason).slice(0, 300) : null,
+    causedBy: audit.causedBy ?? null, // activity / analysis / image record id
+    changes,
+  });
+  const history = [...(current.history ?? []), entry].slice(-MAX_EVENT_HISTORY);
+
+  await updateDoc(ref, { ...write, history, updatedAt: serverTimestamp() });
+  return { applied: true, reason: null, changedFields: Object.keys(changes), tasksWritten };
+}
+
+/**
+ * Applies a validated AI review: updates only the listed future events,
+ * adds approved new events, and writes one review record for auditability.
+ * `review` = { trigger, causedBy, reason, confidence, changesNeeded,
+ *              newObservation, recommendedFollowUp, updates, additions }.
+ */
+export async function applyTimelineReview(uid, cropId, review) {
+  assertUid(uid);
+  assertCropId(cropId);
+
+  const trigger = REVIEW_TRIGGERS.includes(review.trigger)
+    ? review.trigger
+    : "manual";
+
+  const updatedEventIds = [];
+  const skippedEventIds = [];
+  for (const u of review.updates ?? []) {
+    const res = await updateEventWithAudit(uid, cropId, u.id, u.patch, {
+      trigger,
+      reason: u.reason ?? review.reason,
+      causedBy: review.causedBy ?? null,
+    });
+    if (res.applied) updatedEventIds.push(u.id);
+    else skippedEventIds.push({ id: u.id, reason: res.reason });
+  }
+
+  const addedEventIds = [];
+  for (const e of review.additions ?? []) {
+    const data = {
+      ...normalizeEvent(cropId, e),
+      source: "ai_review",
+      reviewReason: review.reason ? String(review.reason).slice(0, 300) : null,
+    };
+    const ref = await addDoc(eventsCollectionRef(uid, cropId), data);
+    addedEventIds.push(ref.id);
+  }
+
+  // One review record per review — the durable "why did the timeline change".
+  const reviewRef = await addDoc(
+    reviewsCollectionRef(uid, cropId),
+    stripUndefined({
+      cropId,
+      trigger,
+      causedBy: review.causedBy ?? null,
+      changesNeeded: Boolean(review.changesNeeded),
+      reason: review.reason ? String(review.reason).slice(0, 500) : null,
+      confidence:
+        typeof review.confidence === "number" ? review.confidence : null,
+      newObservation: review.newObservation ?? null,
+      recommendedFollowUp: review.recommendedFollowUp ?? null,
+      updatedEventIds,
+      addedEventIds,
+      skippedEventIds,
+      createdBy: uid,
+      createdAt: serverTimestamp(),
+    })
+  );
+
+  // Meta summary — cheap header state, no event reads needed.
+  const metaSnap = await getDoc(cropTimelineRef(uid, cropId));
+  const meta = metaSnap.exists() ? metaSnap.data() : {};
+  await updateDoc(cropTimelineRef(uid, cropId), {
+    lastReviewAt: serverTimestamp(),
+    lastReviewReason: review.reason ? String(review.reason).slice(0, 200) : null,
+    reviewCount: Number(meta.reviewCount ?? 0) + 1,
+    eventCount: Number(meta.eventCount ?? 0) + addedEventIds.length,
+    updatedAt: serverTimestamp(),
+  });
+
+  return {
+    reviewId: reviewRef.id,
+    updated: updatedEventIds.length,
+    added: addedEventIds.length,
+    skipped: skippedEventIds.length,
+    updatedEventIds,
+    addedEventIds,
+    skippedEventIds,
+  };
+}
+
+/** Bounded recent review records (audit trail reads). */
+export async function getRecentReviews(uid, cropId, count = 3) {
+  assertUid(uid);
+  assertCropId(cropId);
+  const q = query(
+    reviewsCollectionRef(uid, cropId),
+    orderBy("createdAt", "desc"),
+    limit(count)
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+// -----------------------------------------------------------------------------
 // Crop activities (user-logged field actions) — recent-first, bounded reads
 // -----------------------------------------------------------------------------
 
@@ -741,4 +955,47 @@ export async function getRecentImages(uid, cropId, count = 4) {
   );
   const snap = await getDocs(q);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+// -----------------------------------------------------------------------------
+// Crop removal cleanup — deletes ONLY this crop's timeline data (meta doc +
+// every subcollection). The existing crops/{uid} entry and all other crops'
+// data are never touched. Call this when the user deletes a crop profile.
+// -----------------------------------------------------------------------------
+
+export async function deleteCropTimeline(uid, cropId) {
+  assertUid(uid);
+  assertCropId(cropId);
+
+  const subcollections = [
+    eventsCollectionRef(uid, cropId),
+    activitiesCollectionRef(uid, cropId),
+    observationsCollectionRef(uid, cropId),
+    analysesCollectionRef(uid, cropId),
+    imagesCollectionRef(uid, cropId),
+    reviewsCollectionRef(uid, cropId),
+  ];
+
+  let deleted = 0;
+  for (const colRef of subcollections) {
+    const snap = await getDocs(colRef);
+    for (let i = 0; i < snap.docs.length; i += MAX_BATCH_OPS) {
+      const batch = writeBatch(fdb);
+      snap.docs
+        .slice(i, i + MAX_BATCH_OPS)
+        .forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+      deleted += Math.min(MAX_BATCH_OPS, snap.docs.length - i);
+    }
+  }
+
+  // Meta doc last — a timeline without a meta doc reads as "none".
+  const metaRef = cropTimelineRef(uid, cropId);
+  const metaSnap = await getDoc(metaRef);
+  if (metaSnap.exists()) {
+    await deleteDoc(metaRef);
+    deleted += 1;
+  }
+
+  return { deleted };
 }

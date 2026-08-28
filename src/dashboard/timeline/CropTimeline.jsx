@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { CalendarDays, Sparkles, Sprout } from "lucide-react";
+import { CalendarDays, RefreshCw, Sparkles, Sprout } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -14,7 +14,7 @@ import {
   getTimeline,
   getTimelineEvents,
 } from "@/services/timelineService";
-import { generateCropTimeline } from "@/services/timelineGenerator";
+import { generateCropTimeline, reviewCropTimeline } from "@/services/timelineGenerator";
 import { buildCropAIContext } from "@/services/aiContextBuilder";
 
 // Local yyyy-mm-dd helpers for the bounded event window query.
@@ -62,9 +62,28 @@ export default function CropTimeline({ crop, cropIndex = 0 }) {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [reviewing, setReviewing] = useState(false);
+  const [reviewNote, setReviewNote] = useState(null);
   const [genError, setGenError] = useState(null);
   const [loadError, setLoadError] = useState(false);
   const requestRef = useRef(0);
+
+  // Re-read meta + bounded events (used by initial load, generate, review).
+  const reloadStored = async () => {
+    try {
+      const timelineMeta = await getTimeline(currentUser.uid, key);
+      setMeta(timelineMeta);
+      const { events: reloaded, failed } = await loadStoredEvents(
+        currentUser.uid,
+        key,
+        timelineMeta?.eventCount
+      );
+      setEvents(reloaded);
+      setLoadError(failed);
+    } catch {
+      /* keep previous state */
+    }
+  };
 
   // Load stored timeline — a read of at most 1 meta doc + 14 bounded events.
   useEffect(() => {
@@ -115,20 +134,34 @@ export default function CropTimeline({ crop, cropIndex = 0 }) {
     } finally {
       setGenerating(false);
       // Reload stored state regardless of outcome
-      try {
-        const timelineMeta = await getTimeline(currentUser.uid, key);
-        setMeta(timelineMeta);
-        const { events: reloaded, failed } = await loadStoredEvents(
-          currentUser.uid,
-          key,
-          timelineMeta?.eventCount
-        );
-        setEvents(reloaded);
-        setLoadError(failed);
-      } catch {
-        /* keep previous state */
-      }
+      await reloadStored();
     }
+  };
+
+  // Manual intelligent review — surgical updates to future events only;
+  // completed history is never touched.
+  const handleReview = async () => {
+    if (reviewing || generating || !currentUser?.uid) return;
+    setReviewing(true);
+    setReviewNote(null);
+    const result = await reviewCropTimeline(currentUser.uid, key, {
+      trigger: "manual",
+      force: true,
+    });
+    if (!result.ok) {
+      setReviewNote(result.error?.message ?? "Timeline review failed.");
+    } else if (!result.changesNeeded) {
+      setReviewNote("AI reviewed the timeline — no changes were needed.");
+    } else {
+      const parts = [];
+      if (result.updated) parts.push(`updated ${result.updated} event(s)`);
+      if (result.added) parts.push(`added ${result.added} follow-up(s)`);
+      setReviewNote(
+        `AI ${parts.join(" and ") || "reviewed the timeline"} — ${result.reason}`
+      );
+    }
+    await reloadStored();
+    setReviewing(false);
   };
 
   const hasTimeline = events.length > 0;
@@ -209,6 +242,17 @@ export default function CropTimeline({ crop, cropIndex = 0 }) {
                     {event.isEstimated && (
                       <span className="text-[10px] text-black/40 italic">estimated</span>
                     )}
+                    {Array.isArray(event.history) && event.history.length > 0 && (
+                      <span
+                        className="text-[10px] text-amber-700 italic"
+                        title={
+                          event.history[event.history.length - 1]?.reason ??
+                          "Updated by an AI timeline review"
+                        }
+                      >
+                        updated ×{event.history.length}
+                      </span>
+                    )}
                   </div>
                   <p className="text-[12px] text-black/55">
                     {event.date ? formatDate(event.date) : "Date unknown"}
@@ -284,6 +328,30 @@ export default function CropTimeline({ crop, cropIndex = 0 }) {
               <Badge variant="secondary" className="ml-auto">
                 {meta.status}
               </Badge>
+            )}
+          </div>
+        )}
+
+        {/* Intelligent review — updates future events only, keeps history */}
+        {hasTimeline && (
+          <div className="mt-3">
+            <button
+              type="button"
+              onClick={handleReview}
+              disabled={reviewing || generating}
+              className="inline-flex items-center gap-1.5 border border-[var(--text1)]/50 text-[var(--text1)] hover:bg-[#D7E8C0]/50 text-[12px] font-semibold px-3 py-1.5 rounded-xl cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <RefreshCw size={13} className={reviewing ? "animate-spin" : ""} />
+              {reviewing ? "Reviewing timeline…" : "AI Review Timeline"}
+            </button>
+            <p className="mt-1 text-[11px] text-black/45">
+              Checks new activities, observations and weather against the plan
+              and adjusts only future events — completed history is preserved.
+            </p>
+            {reviewNote && (
+              <p className="mt-1.5 rounded-xl bg-[#D7E8C0]/50 px-3 py-2 text-[12px] text-black/70">
+                {reviewNote}
+              </p>
             )}
           </div>
         )}

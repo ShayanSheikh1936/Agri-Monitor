@@ -74,6 +74,17 @@ export default function TimelineEventList({ events, showTrack = true }) {
                   estimated
                 </span>
               )}
+              {Array.isArray(event.history) && event.history.length > 0 && (
+                <span
+                  className="text-[10px] text-amber-700 italic"
+                  title={
+                    event.history[event.history.length - 1]?.reason ??
+                    "Updated by an AI timeline review"
+                  }
+                >
+                  updated ×{event.history.length}
+                </span>
+              )}
             </div>
             <p className="text-[12px] text-black/55">
               {event.date ? formatDate(event.date) : "Date unknown"}

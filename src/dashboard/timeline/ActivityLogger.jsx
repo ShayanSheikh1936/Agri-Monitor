@@ -8,7 +8,8 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ACTIVITY_TYPES, logCropActivity } from "../../services/timelineService";
+import { ACTIVITY_TYPES, REVIEW_TRIGGERING_ACTIVITIES, logCropActivity } from "../../services/timelineService";
+import { reviewCropTimeline } from "../../services/timelineGenerator";
 import { localDateISO } from "@/lib/cropUtils";
 
 // Labels shown to the farmer for each stored activity type.
@@ -47,7 +48,7 @@ export default function ActivityLogger({ uid, cropId, crop, onLogged }) {
     setError(null);
     setSaved(false);
     try {
-      await logCropActivity(uid, cropId, {
+      const saved = await logCropActivity(uid, cropId, {
         type,
         date,
         quantity: quantity === "" ? null : Number(quantity),
@@ -55,11 +56,25 @@ export default function ActivityLogger({ uid, cropId, crop, onLogged }) {
         title: ACTIVITY_LABELS[type] ?? "Field activity",
         notes: notes.trim() || null,
       });
+      const trimmedNotes = notes.trim();
       setQuantity("");
       setUnit("");
       setNotes("");
       setSaved(true);
       onLogged?.();
+
+      // Meaningful activities trigger an intelligent timeline review in the
+      // background (fire-and-forget; a 10-minute cooldown prevents spam).
+      if (REVIEW_TRIGGERING_ACTIVITIES.includes(type)) {
+        const qtyText = saved.quantity ? ` ${saved.quantity}${saved.unit ? " " + saved.unit : ""}` : "";
+        reviewCropTimeline(uid, cropId, {
+          trigger: "activity",
+          causedBy: saved.id,
+          triggerDetail: `${ACTIVITY_LABELS[type] ?? type} logged on ${saved.date}${qtyText}${trimmedNotes ? ` — ${trimmedNotes}` : ""}`,
+        })
+          .catch(() => {})
+          .finally(() => onLogged?.());
+      }
     } catch (err) {
       setError(err.message ?? "The activity could not be saved.");
     } finally {
@@ -76,7 +91,8 @@ export default function ActivityLogger({ uid, cropId, crop, onLogged }) {
         </CardTitle>
         <CardDescription>
           Record work done on {crop?.CropName || "this crop"} — it feeds the
-          AI context for future analysis.
+          AI context, and meaningful entries trigger a background timeline
+          review.
         </CardDescription>
       </CardHeader>
       <CardContent>
