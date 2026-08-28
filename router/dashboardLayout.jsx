@@ -81,7 +81,7 @@ export default function DashboardLayout() {
         <aside className="flex border-r-1 border-[var(--text1)] ">
           <div className="bg-[#D7E8C0] flex-2 h-screen flex flex-col gap-3 pl-1 pr-2 overflow-x-hidden  ">
             <Link to="/dashboard" className="flex items-center gap-2 border-b-1 border-[var(--text1)] pb-1 ">
-              <img src="logo1.svg" alt="" width={70} />
+              <img src="/logo1.svg" alt="" width={70} />
               <h1 className="text-4xl text-[var(--text1)]  [-webkit-text-stroke:0.4px_black] font-bold bebas-neue-regular">AGRI MONITOR</h1>
             </Link>
             <div className="flex gap-2 items-center">
