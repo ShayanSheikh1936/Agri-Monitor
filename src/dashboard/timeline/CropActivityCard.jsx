@@ -37,12 +37,20 @@ export default function CropActivityCard({ crop, activities = [], loading }) {
     });
   }
 
-  const storedEvents = activities.map((a) => ({
-    id: a.id,
-    dateLabel: formatDate(a.createdAt),
-    title: a.title || "Field activity",
-    detail: a.note ?? a.type ?? "",
-  }));
+  const storedEvents = activities.map((a) => {
+    const qty =
+      a.quantity != null
+        ? `${a.quantity}${a.unit ? ` ${a.unit}` : ""}`
+        : null;
+    return {
+      id: a.id,
+      dateLabel: formatDate(a.createdAt),
+      title: a.title || "Field activity",
+      detail: [qty, a.notes ?? a.note ?? null].filter(Boolean).join(" — ") ||
+        a.type ||
+        "",
+    };
+  });
 
   const events = [...storedEvents, ...baseEvents];
 

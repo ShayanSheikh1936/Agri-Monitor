@@ -18,6 +18,7 @@ import WeatherCard from "./timeline/WeatherCard";
 import AIObservationCard from "./timeline/AIObservationCard";
 import AIRecommendationCard from "./timeline/AIRecommendationCard";
 import CropActivityCard from "./timeline/CropActivityCard";
+import ActivityLogger from "./timeline/ActivityLogger";
 import AskAI from "./timeline/AskAI";
 import CropImageAnalysis from "./timeline/CropImageAnalysis";
 
@@ -149,11 +150,19 @@ export default function CropTimelinePage() {
               loading={dash.loading}
             />
           </div>
-          <CropActivityCard
-            crop={crop}
-            activities={dash.activities}
-            loading={dash.loading}
-          />
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <ActivityLogger
+              uid={currentUser?.uid ?? null}
+              cropId={key}
+              crop={crop}
+              onLogged={dash.reload}
+            />
+            <CropActivityCard
+              crop={crop}
+              activities={dash.activities}
+              loading={dash.loading}
+            />
+          </div>
         </div>
         <div className="grid content-start gap-4">
           <CropStageCard crop={crop} meta={dash.meta} />
@@ -181,7 +190,12 @@ export default function CropTimelinePage() {
           analyses={dash.analyses}
           loading={dash.loading}
         />
-        <CropImageAnalysis crop={crop} />
+        <CropImageAnalysis
+          crop={crop}
+          uid={currentUser?.uid ?? null}
+          cropId={key}
+          onAnalyzed={dash.reload}
+        />
         <AskAI crop={crop} />
       </div>
     </div>

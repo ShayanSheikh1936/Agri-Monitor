@@ -70,10 +70,26 @@ export const TIMELINE_SOURCE = {
 
 export const IMAGE_PURPOSES = ["crop", "affected", "analysis", "progress"];
 
+// User-loggable field activities (crop activity tracking).
+export const ACTIVITY_TYPES = [
+  "planting",
+  "irrigation",
+  "fertilizer",
+  "pesticide",
+  "weeding",
+  "pruning",
+  "pest_observation",
+  "disease_observation",
+  "harvesting",
+  "other",
+];
+
 // Safety caps
 const MAX_BATCH_OPS = 450; // Firestore batch limit is 500; keep headroom
 const MAX_IMAGE_BASE64_CHARS = 500_000; // ~375KB — protects the 1MiB doc limit
 const MAX_ACTIVITY_TEXT = 500;
+const MAX_QUANTITY_UNIT = 100;
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 // -----------------------------------------------------------------------------
 // Path helpers — every path is scoped under the authenticated user's UID
@@ -527,12 +543,35 @@ export async function updateEventStatus(uid, cropId, eventId, status) {
 export async function logCropActivity(uid, cropId, activity) {
   assertUid(uid);
   assertCropId(cropId);
+
+  // Type must be one of the known activity types (internal "note" kept for
+  // auto-logged timeline events); anything else falls back to "other".
+  const rawType = activity.type ?? "other";
+  const type =
+    ACTIVITY_TYPES.includes(rawType) || rawType === "note" ? rawType : "other";
+
+  // Date must be a valid field-local yyyy-mm-dd when provided.
+  const date =
+    typeof activity.date === "string" && DATE_RE.test(activity.date)
+      ? activity.date
+      : toDateString();
+
+  // Quantity is optional; only finite positive numbers are stored.
+  const qty = Number(activity.quantity);
+  const quantity = Number.isFinite(qty) && qty > 0 ? qty : null;
+
   const data = stripUndefined({
     cropId,
-    date: activity.date ?? toDateString(),
-    type: activity.type ?? "note",
+    type,
+    date,
+    quantity,
+    unit: activity.unit
+      ? String(activity.unit).slice(0, MAX_QUANTITY_UNIT)
+      : null,
     title: String(activity.title ?? "").slice(0, MAX_ACTIVITY_TEXT),
-    note: activity.note ? String(activity.note).slice(0, MAX_ACTIVITY_TEXT) : null,
+    notes: activity.notes
+      ? String(activity.notes).slice(0, MAX_ACTIVITY_TEXT)
+      : null,
     eventId: activity.eventId ?? null,
     createdBy: uid,
     createdAt: serverTimestamp(),
@@ -592,14 +631,39 @@ export async function getRecentObservations(uid, cropId, count = 5) {
 // AI analyses (structured findings, e.g. from image analysis) — bounded reads
 // -----------------------------------------------------------------------------
 
+export const ANALYSIS_URGENCIES = ["low", "medium", "high"];
+
 export async function saveAIAnalysis(uid, cropId, analysis) {
   assertUid(uid);
   assertCropId(cropId);
+
+  const stringArray = (v, cap = 12) =>
+    Array.isArray(v)
+      ? v
+          .slice(0, cap)
+          .map((x) => (typeof x === "string" ? x.trim() : ""))
+          .filter(Boolean)
+      : [];
+
   const data = stripUndefined({
     cropId,
     date: analysis.date ?? toDateString(),
     kind: analysis.kind ?? "image",
     imageId: analysis.imageId ?? null,
+    // Structured analysis (image analysis contract).
+    identifiedCrop: analysis.identifiedCrop ?? null,
+    possibleIssue: analysis.possibleIssue ?? null,
+    confidence:
+      typeof analysis.confidence === "number" ? analysis.confidence : null,
+    observations: stringArray(analysis.observations),
+    possibleCauses: stringArray(analysis.possibleCauses),
+    recommendedActions: stringArray(analysis.recommendedActions),
+    prevention: stringArray(analysis.prevention),
+    urgency: ANALYSIS_URGENCIES.includes(analysis.urgency)
+      ? analysis.urgency
+      : "medium",
+    needsExpertReview: Boolean(analysis.needsExpertReview),
+    // Human-readable summary used by the recommendations card.
     findings: analysis.findings ?? "",
     recommendations: analysis.recommendations ?? "",
     modelVersion: analysis.modelVersion ?? null,

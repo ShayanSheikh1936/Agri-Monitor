@@ -96,6 +96,15 @@ export function buildTimelinePrompt(context) {
     lines.push(`- Currently affected part: ${context.affectedPart}`);
   }
 
+  if (context.recentActivities?.length) {
+    lines.push("", "RECENT FIELD ACTIVITIES (user-logged, newest first):");
+    for (const a of context.recentActivities) {
+      const qty = a.quantity ? ` ${a.quantity}${a.unit ? " " + a.unit : ""}` : "";
+      const note = a.notes ? ` — ${a.notes}` : "";
+      lines.push(`- ${a.date ?? "undated"}: ${a.type}${qty}${note}`);
+    }
+  }
+
   if (context.weather?.ok) {
     lines.push("", "WEATHER OUTLOOK (informational only):");
     const c = context.weather.current;
@@ -142,7 +151,7 @@ function resolveApiUrl(options) {
   return env.VITE_API_URL || null;
 }
 
-async function callAIBackend(apiUrl, prompt, { location = null, timeoutMs }) {
+async function callAIBackend(apiUrl, prompt, { location = null, image = null, timeoutMs }) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -152,7 +161,8 @@ async function callAIBackend(apiUrl, prompt, { location = null, timeoutMs }) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       // Same contract as the existing Chatbot (chatbots.jsx) — no new backend.
-      body: JSON.stringify({ prompt, lang: "English", image: null, location }),
+      // `image` is a base64 data URL (existing chatbot pattern) or null.
+      body: JSON.stringify({ prompt, lang: "English", image, location }),
       signal: controller.signal,
     });
   } catch (err) {
@@ -523,6 +533,273 @@ export async function generateTimelineForNewCrop(uid, cropEntry) {
       error: {
         code: GENERATION_ERROR_CODES.MISSING_CONTEXT,
         message: err.message ?? "Timeline generation could not start.",
+      },
+    };
+  }
+}
+
+// =============================================================================
+// Crop image analysis — same existing AI backend, image sent as base64 data
+// URL exactly like the chatbot does. Flow: image record → context → AI →
+// strict validation → saved analysis. Never throws; returns { ok, ... }.
+// =============================================================================
+
+export function buildImageAnalysisPrompt(context, userNotes = null) {
+  const p = context.profile;
+  const provided = (v) => (v === null || v === undefined || v === "" ? "not provided" : String(v));
+
+  const lines = [
+    "You are an expert agronomist assistant for the Agri Monitor farm dashboard.",
+    "Analyze the ATTACHED CROP PHOTO and return a structured health analysis.",
+    "Respond with STRICT JSON only: no markdown, no code fences, no commentary.",
+    "",
+    "CROP PROFILE (from the farmer's dashboard):",
+    `- Crop name: ${provided(p.name)}`,
+    `- Category: ${provided(p.category)}`,
+    `- Variety / seed type: ${provided(p.varietySeedType)}`,
+    `- Sowing date: ${context.hasSowingDate ? context.sowingDateISO : "not provided"}`,
+    `- Plant age today: ${context.plantAgeDays != null ? `${context.plantAgeDays} days` : "unknown"}`,
+    `- Location: ${context.locationString ?? "not provided"}`,
+    `- Soil type: ${provided(p.soil)}`,
+    `- Irrigation system: ${provided(p.irrigation)}`,
+    `- Reported condition: ${provided(p.currentCondition)}`,
+  ];
+
+  if (context.affectedPart) {
+    lines.push(`- Reported affected part: ${context.affectedPart}`);
+  }
+
+  if (context.recentActivities?.length) {
+    lines.push("", "RECENT FIELD ACTIVITIES (user-logged, newest first):");
+    for (const a of context.recentActivities) {
+      const qty = a.quantity ? ` ${a.quantity}${a.unit ? " " + a.unit : ""}` : "";
+      const note = a.notes ? ` — ${a.notes}` : "";
+      lines.push(`- ${a.date ?? "undated"}: ${a.type}${qty}${note}`);
+    }
+  }
+
+  if (userNotes && String(userNotes).trim()) {
+    lines.push("", `FARMER NOTE ABOUT THIS PHOTO: ${String(userNotes).trim()}`);
+  }
+
+  lines.push(
+    "",
+    "RULES:",
+    '1. You are looking at ONE photo — NEVER claim certainty. Use uncertainty language such as "likely", "possible", "appears consistent with", "cannot determine confidently".',
+    "2. Never invent information that is not visible in the image or not provided above. Unknown values stay null.",
+    "3. SAFETY: never prescribe exact pesticide/chemical product names or dosages. Keep actions general and evidence-aware, and set needsExpertReview=true whenever evidence is insufficient.",
+    "4. If the image is blurry, not a plant, or unreadable, say so honestly in observations and set needsExpertReview=true.",
+    "5. Consider the recent field activities when reasoning about possible causes (e.g. recent fertilizer + yellowing leaves).",
+    '6. urgency must be exactly "low", "medium" or "high".',
+    "",
+    "Return exactly this JSON object shape:",
+    '{"identifiedCrop":"best guess crop or null","possibleIssue":"one sentence, uncertainty-aware, or null","confidence":0.55,"observations":["what is visible in the photo"],"possibleCauses":["likely causes"],"recommendedActions":["safe general actions"],"prevention":["preventive tips"],"urgency":"low|medium|high","needsExpertReview":false}'
+  );
+
+  return lines.join("\n");
+}
+
+const URGENCY_MAP = { low: "low", medium: "medium", high: "high", severe: "high", urgent: "high", none: "low" };
+// Crude chemical-dosage detector — flags exact quantitative prescriptions.
+const DOSAGE_RE = /\b\d+(?:\.\d+)?\s?(?:g|kg|ml|l|grams?|lit(?:er|re)s?)\s?(?:\/|per)\s?(?:l|lit(?:er|re)|ha|acre|m2|m²)/i;
+
+/**
+ * Validates and normalizes a parsed AI image-analysis response into the
+ * structured analysis contract. Throws TimelineGenerationError when unusable.
+ */
+export function validateAnalysisResponse(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new TimelineGenerationError(
+      GENERATION_ERROR_CODES.INVALID_RESPONSE,
+      "AI analysis response is not a JSON object."
+    );
+  }
+
+  const warnings = [];
+  const strOrNull = (v) =>
+    typeof v === "string" && v.trim() ? v.trim().slice(0, 500) : null;
+  const list = (v) =>
+    Array.isArray(v)
+      ? v
+          .filter((x) => typeof x === "string" && x.trim())
+          .map((x) => x.trim().slice(0, 300))
+          .slice(0, 12)
+      : [];
+
+  // Confidence must land in [0,1]; percentages are folded down.
+  let confidence = raw.confidence;
+  if (typeof confidence === "string") confidence = Number(confidence);
+  if (typeof confidence === "number" && Number.isFinite(confidence)) {
+    if (confidence > 1 && confidence <= 100) confidence = confidence / 100;
+    confidence = Math.min(Math.max(confidence, 0), 1);
+  } else {
+    confidence = null;
+  }
+
+  const urgencyRaw =
+    typeof raw.urgency === "string" ? raw.urgency.toLowerCase().trim() : "";
+  const urgency = URGENCY_MAP[urgencyRaw] ?? "medium";
+  if (!URGENCY_MAP[urgencyRaw]) {
+    warnings.push(`Unknown urgency "${urgencyRaw || "(missing)"}" normalized to medium.`);
+  }
+
+  const observations = list(raw.observations);
+  const possibleCauses = list(raw.possibleCauses);
+  const recommendedActions = list(raw.recommendedActions);
+  const prevention = list(raw.prevention);
+
+  // Safety: high urgency or any exact chemical dosage forces expert review.
+  const hasDosage = [...recommendedActions, ...prevention].some((s) =>
+    DOSAGE_RE.test(s)
+  );
+  if (hasDosage) {
+    warnings.push("Exact dosage figures detected — flagged for expert review.");
+  }
+  const needsExpertReview =
+    Boolean(raw.needsExpertReview) || urgency === "high" || hasDosage;
+
+  const identifiedCrop = strOrNull(raw.identifiedCrop);
+  const possibleIssue = strOrNull(raw.possibleIssue);
+
+  if (!identifiedCrop && !possibleIssue && observations.length === 0) {
+    throw new TimelineGenerationError(
+      GENERATION_ERROR_CODES.INVALID_RESPONSE,
+      "AI analysis contained no usable findings."
+    );
+  }
+
+  return {
+    identifiedCrop,
+    possibleIssue,
+    confidence,
+    observations,
+    possibleCauses,
+    recommendedActions,
+    prevention,
+    urgency,
+    needsExpertReview,
+    warnings,
+  };
+}
+
+/**
+ * Full image-analysis flow for one crop:
+ *   image record (base64, existing storage pattern) → crop context →
+ *   existing AI backend → strict validation → saved AI analysis.
+ * NEVER throws — returns { ok: true, analysis } or { ok: false, error }.
+ */
+export async function analyzeAndSaveCropImage(uid, cropId, options = {}) {
+  const { imageBase64 = null, userNotes = null, timeoutMs = DEFAULT_TIMEOUT_MS } = options;
+
+  if (!uid || !cropId) {
+    return {
+      ok: false,
+      error: {
+        code: GENERATION_ERROR_CODES.MISSING_CONTEXT,
+        message: "An authenticated user and crop are required.",
+      },
+    };
+  }
+  if (typeof imageBase64 !== "string" || !imageBase64.startsWith("data:image/")) {
+    return {
+      ok: false,
+      error: {
+        code: GENERATION_ERROR_CODES.MISSING_CONTEXT,
+        message: "A valid image is required for analysis.",
+      },
+    };
+  }
+
+  // ---- 1. Image record first (persists even if the AI call fails) ----
+  let imageRecord;
+  try {
+    imageRecord = await timelineService.addTimelineImage(uid, cropId, {
+      purpose: "analysis",
+      base64: imageBase64,
+      caption: userNotes ? String(userNotes).slice(0, 200) : "AI image analysis",
+    });
+  } catch (err) {
+    return {
+      ok: false,
+      error: {
+        code: GENERATION_ERROR_CODES.SAVE_FAILED,
+        message: err.message ?? "The image could not be saved.",
+      },
+    };
+  }
+
+  // ---- 2. Crop profile + activity history context ----
+  let context;
+  try {
+    context = await buildCropAIContext(cropId, { uid });
+  } catch (err) {
+    return {
+      ok: false,
+      error: {
+        code: GENERATION_ERROR_CODES.MISSING_CONTEXT,
+        message: err.message ?? "Crop context could not be built.",
+      },
+    };
+  }
+
+  // ---- 3. Existing AI backend with the image attached ----
+  let validated;
+  try {
+    const apiUrl = resolveApiUrl(options);
+    if (!apiUrl) {
+      throw new TimelineGenerationError(
+        GENERATION_ERROR_CODES.MISSING_API_URL,
+        "VITE_API_URL is missing. Check your .env.local file."
+      );
+    }
+    const prompt = buildImageAnalysisPrompt(context, userNotes);
+    const reply = await callAIBackend(apiUrl, prompt, {
+      location: context.locationString,
+      image: imageBase64,
+      timeoutMs,
+    });
+    const raw = extractJsonFromReply(reply);
+    validated = validateAnalysisResponse(raw);
+  } catch (err) {
+    return {
+      ok: false,
+      imageId: imageRecord.id,
+      error: {
+        code: err.code ?? GENERATION_ERROR_CODES.AI_REQUEST_FAILED,
+        message: err.message ?? "Image analysis failed.",
+      },
+    };
+  }
+
+  // ---- 4. Persist the validated analysis, linked to the image record ----
+  try {
+    const findings =
+      validated.possibleIssue ??
+      (validated.observations[0] ?? "No issue identified from this image.");
+    const recommendations =
+      validated.recommendedActions.join("; ") ||
+      "No specific actions suggested — monitor the crop.";
+
+    const analysis = await timelineService.saveAIAnalysis(uid, cropId, {
+      kind: "image",
+      imageId: imageRecord.id,
+      ...validated,
+      findings,
+      recommendations,
+    });
+    return {
+      ok: true,
+      analysis,
+      imageId: imageRecord.id,
+      warnings: validated.warnings,
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      imageId: imageRecord.id,
+      error: {
+        code: GENERATION_ERROR_CODES.SAVE_FAILED,
+        message: err.message ?? "The analysis could not be saved.",
       },
     };
   }

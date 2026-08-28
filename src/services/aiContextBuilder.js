@@ -21,7 +21,11 @@ import {
   getHealthStatus,
   getAffectedPart,
 } from "../lib/cropUtils.js";
-import { buildCropProfile, getTimeline } from "./timelineService.js";
+import {
+  buildCropProfile,
+  getTimeline,
+  getRecentActivities,
+} from "./timelineService.js";
 import { fetchWeatherForCrop } from "./weatherService.js";
 
 /**
@@ -33,10 +37,11 @@ import { fetchWeatherForCrop } from "./weatherService.js";
  *   cropEntry  the crop entry object, when the caller already has it
  *              (skips a Firestore read of crops/{uid})
  *   includeWeather  default true; set false to skip the weather lookup
+ *   includeActivities  default true; bounded read of recent field activities
  * @returns {Promise<object>} structured context (see shape below)
  */
 export async function buildCropAIContext(cropId, options = {}) {
-  const { uid, includeWeather = true } = options;
+  const { uid, includeWeather = true, includeActivities = true } = options;
   if (!uid) throw new Error("aiContextBuilder: uid is required.");
   if (!cropId) throw new Error("aiContextBuilder: cropId is required.");
 
@@ -64,6 +69,26 @@ export async function buildCropAIContext(cropId, options = {}) {
 
   const profile = buildCropProfile(cropEntry, timelineMeta);
   const sowing = getSowingDate(cropEntry);
+
+  // ---- Recent field activities (bounded, best effort, never fatal) ----
+  // E.g. "fertilizer applied 2 days ago" must reach the AI when the user
+  // reports yellow leaves. Empty array when none logged.
+  let recentActivities = [];
+  if (includeActivities) {
+    try {
+      recentActivities = (await getRecentActivities(uid, cropId, 10)).map(
+        (a) => ({
+          type: a.type ?? "other",
+          date: a.date ?? null,
+          quantity: a.quantity ?? null,
+          unit: a.unit ?? null,
+          notes: a.notes ?? a.note ?? null,
+        })
+      );
+    } catch {
+      recentActivities = []; // activity read must never break context building
+    }
+  }
 
   // ---- Weather context (informational, never fatal) ----
   let weather = { ok: false, code: "NOT_REQUESTED" };
@@ -121,6 +146,7 @@ export async function buildCropAIContext(cropId, options = {}) {
     plantAgeDays: getPlantAgeDays(cropEntry),
     healthStatus: getHealthStatus(cropEntry),
     affectedPart: getAffectedPart(cropEntry),
+    recentActivities,
     weather,
     missingFields,
     locationString: location ? `${location.lat}, ${location.lon}` : null,
