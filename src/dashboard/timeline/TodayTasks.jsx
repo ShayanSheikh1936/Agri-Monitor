@@ -1,10 +1,19 @@
+import { Sunrise } from "lucide-react";
 import TaskListCard from "./TaskListCard";
 
-export default function TodayTasks({ crop }) {
+// Today's persisted timeline events (date === user's current local date).
+export default function TodayTasks({ crop, events, loading, emptyHint }) {
   return (
     <TaskListCard
-      title="Today's Tasks"
-      description={`No tasks yet. Once AI timeline generation is enabled, today's recommended activities for ${crop.CropName || "this crop"} will appear here.`}
+      title="Today"
+      icon={Sunrise}
+      events={events}
+      loading={loading}
+      countLabel="task"
+      emptyText={
+        emptyHint ??
+        `Nothing scheduled for today on ${crop?.CropName || "this crop"}.`
+      }
     />
   );
 }

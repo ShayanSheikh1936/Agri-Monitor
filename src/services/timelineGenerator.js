@@ -410,6 +410,13 @@ export async function generateCropTimeline(context, options = {}) {
     return fail(context, GENERATION_ERROR_CODES.SAVE_FAILED, err.message);
   }
 
+  // Stamp attempt start (non-fatal) so dashboards can show "in progress".
+  try {
+    await timelineService.markGenerationAttempt(uid, cropId);
+  } catch {
+    /* non-fatal */
+  }
+
   // ---- AI call ----
   let validated;
   try {

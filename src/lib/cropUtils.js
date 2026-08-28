@@ -47,6 +47,9 @@ export function getGpsLocation(crop) {
 }
 
 export function formatDate(value) {
+  // Tolerates Firestore Timestamps as well as Date / iso-string / epoch ms.
+  if (value && typeof value.toDate === "function") value = value.toDate();
+  else if (value && typeof value.toMillis === "function") value = value.toMillis();
   const d = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(d.getTime())) return null;
   return d.toLocaleDateString(undefined, {
@@ -54,6 +57,42 @@ export function formatDate(value) {
     month: "short",
     year: "numeric",
   });
+}
+
+// Local-timezone yyyy-mm-dd for "today" / "tomorrow" window queries.
+// Never hard-coded — always derived from the user's current local date.
+export function localDateISO(offsetDays = 0) {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${m}-${day}`;
+}
+
+// Firestore Timestamp / Date / number / iso-string -> epoch ms (or null).
+function toEpochMs(value) {
+  if (!value) return null;
+  if (typeof value.toMillis === "function") return value.toMillis();
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === "number") return value;
+  const t = new Date(value).getTime();
+  return Number.isNaN(t) ? null : t;
+}
+
+// Derives the timeline generation state from the stored meta doc ONLY —
+// the dashboard never triggers generation itself.
+//   none        → no meta, or meta without any attempt yet
+//   in_progress → attempt stamped within the last 5 minutes, no result yet
+//   stalled     → old attempt, no result, no stored error (treat as failed)
+//   failed      → stored lastGenerationError
+//   ready       → events exist
+export function getGenerationState(meta, nowMs = Date.now()) {
+  if (!meta) return "none";
+  if (Number(meta.eventCount ?? 0) > 0) return "ready";
+  if (meta.lastGenerationError) return "failed";
+  const attemptMs = toEpochMs(meta.lastAttemptAt);
+  if (attemptMs == null) return "none";
+  return nowMs - attemptMs < 5 * 60 * 1000 ? "in_progress" : "stalled";
 }
 
 // Human labels for the stored HealthStatus values (from addnewcrop.jsx).

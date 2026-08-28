@@ -23,7 +23,7 @@ function Fact({ label, value }) {
   );
 }
 
-export default function CropOverview({ crop }) {
+export default function CropOverview({ crop, meta = null, nextMilestone = null }) {
   const sowing = getSowingDate(crop);
   const ageDays = getPlantAgeDays(crop);
   const health = getHealthStatus(crop);
@@ -101,6 +101,23 @@ export default function CropOverview({ crop }) {
                 ? `${gps.lat.toFixed(3)}, ${gps.lon.toFixed(3)}`
                 : null
             }
+          />
+          <Fact label="Current Stage" value={meta?.currentStage ?? null} />
+          <Fact
+            label="Next Milestone"
+            value={
+              nextMilestone
+                ? `${nextMilestone.title}${nextMilestone.date ? ` · ${formatDate(nextMilestone.date)}` : ""}`
+                : null
+            }
+          />
+          <Fact
+            label="Est. Harvest"
+            value={meta?.expectedHarvestDate ? formatDate(meta.expectedHarvestDate) : null}
+          />
+          <Fact
+            label="Variety / Seed"
+            value={crop.SeedType ?? null}
           />
         </div>
       </CardContent>

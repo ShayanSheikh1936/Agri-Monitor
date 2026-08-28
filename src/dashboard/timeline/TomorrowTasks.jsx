@@ -1,10 +1,18 @@
+import { CalendarDays } from "lucide-react";
 import TaskListCard from "./TaskListCard";
 
-export default function TomorrowTasks({ crop }) {
+// Tomorrow's persisted timeline events (date === next calendar date).
+export default function TomorrowTasks({ crop, events, loading, emptyHint }) {
   return (
     <TaskListCard
-      title="Tomorrow's Tasks"
-      description={`No tasks yet. Tomorrow's planned activities for ${crop.CropName || "this crop"} will be suggested here based on the crop stage and weather.`}
+      title="Tomorrow"
+      icon={CalendarDays}
+      events={events}
+      loading={loading}
+      countLabel="task"
+      emptyText={
+        emptyHint ?? "Nothing scheduled for tomorrow yet."
+      }
     />
   );
 }

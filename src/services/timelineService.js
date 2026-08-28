@@ -243,6 +243,18 @@ export async function updateTimelineMeta(uid, cropId, patch) {
 }
 
 /**
+ * Stamps an attempt start so dashboards can show "generation in progress"
+ * without ever triggering generation themselves. Call only after initTimeline.
+ */
+export async function markGenerationAttempt(uid, cropId) {
+  assertUid(uid);
+  assertCropId(cropId);
+  await updateDoc(cropTimelineRef(uid, cropId), {
+    lastAttemptAt: serverTimestamp(),
+  });
+}
+
+/**
  * Timeline-only extended profile fields. Base crop profile data stays in the
  * existing crops collection and is merged at read time by buildCropProfile().
  */

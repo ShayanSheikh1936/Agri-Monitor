@@ -2,7 +2,9 @@ import { useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import { Plus, Sprout } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "../features/auth/authContext";
 import { cropKey, getPlantAgeDays } from "@/lib/cropUtils";
+import useTimelineDashboard from "./timeline/useTimelineDashboard";
 import CropOverview from "./timeline/CropOverview";
 import CropStageCard from "./timeline/CropStageCard";
 import CropTimeline from "./timeline/CropTimeline";
@@ -14,6 +16,7 @@ import IrrigationCard from "./timeline/IrrigationCard";
 import SoilCard from "./timeline/SoilCard";
 import WeatherCard from "./timeline/WeatherCard";
 import AIObservationCard from "./timeline/AIObservationCard";
+import AIRecommendationCard from "./timeline/AIRecommendationCard";
 import CropActivityCard from "./timeline/CropActivityCard";
 import AskAI from "./timeline/AskAI";
 import CropImageAnalysis from "./timeline/CropImageAnalysis";
@@ -23,12 +26,17 @@ import CropImageAnalysis from "./timeline/CropImageAnalysis";
 // provided by router/dashboardLayout.jsx. No Firestore writes, no fake data.
 export default function CropTimelinePage() {
   const { userData, userCropData } = useOutletContext();
+  const { currentUser } = useAuth();
   const crops = userCropData?.crops ?? [];
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   const safeIndex =
     crops.length > 0 ? Math.min(selectedIndex, crops.length - 1) : 0;
   const crop = crops[safeIndex] ?? null;
+  const key = crop ? cropKey(crop, safeIndex) : null;
+
+  // Read-only persisted timeline data (bounded reads, no regeneration).
+  const dash = useTimelineDashboard(currentUser?.uid ?? null, crop, key);
 
   // No crops yet — honest empty state, same pattern as dashboard.jsx
   if (!crop) {
@@ -113,32 +121,66 @@ export default function CropTimelinePage() {
         })}
       </div>
 
-      {/* Overview (real stored crop data) */}
-      <CropOverview crop={crop} />
+      {/* Overview (real stored crop data + persisted timeline meta) */}
+      <CropOverview
+        crop={crop}
+        meta={dash.meta}
+        nextMilestone={dash.nextMilestone}
+      />
 
       {/* Main grid */}
       <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3">
         <div className="grid content-start gap-4 xl:col-span-2">
           <CropTimeline crop={crop} cropIndex={safeIndex} />
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <TodayTasks crop={crop} />
-            <TomorrowTasks crop={crop} />
-            <UpcomingTasks crop={crop} />
+            <TodayTasks
+              crop={crop}
+              events={dash.today}
+              loading={dash.loading}
+            />
+            <TomorrowTasks
+              crop={crop}
+              events={dash.tomorrow}
+              loading={dash.loading}
+            />
+            <UpcomingTasks
+              crop={crop}
+              events={dash.upcoming}
+              loading={dash.loading}
+            />
           </div>
-          <CropActivityCard crop={crop} />
+          <CropActivityCard
+            crop={crop}
+            activities={dash.activities}
+            loading={dash.loading}
+          />
         </div>
         <div className="grid content-start gap-4">
-          <CropStageCard crop={crop} />
+          <CropStageCard crop={crop} meta={dash.meta} />
           <CropHealthCard crop={crop} />
-          <WeatherCard crop={crop} />
+          <WeatherCard
+            crop={crop}
+            weather={dash.weather}
+            weatherError={dash.weatherError}
+            loading={dash.loading}
+          />
           <IrrigationCard crop={crop} />
           <SoilCard crop={crop} />
         </div>
       </div>
 
       {/* Bottom row */}
-      <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-        <AIObservationCard crop={crop} />
+      <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <AIObservationCard
+          crop={crop}
+          observations={dash.observations}
+          loading={dash.loading}
+        />
+        <AIRecommendationCard
+          crop={crop}
+          analyses={dash.analyses}
+          loading={dash.loading}
+        />
         <CropImageAnalysis crop={crop} />
         <AskAI crop={crop} />
       </div>

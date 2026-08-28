@@ -1,10 +1,19 @@
+import { CalendarRange } from "lucide-react";
 import TaskListCard from "./TaskListCard";
 
-export default function UpcomingTasks({ crop }) {
+// Future persisted timeline events, ordered chronologically.
+export default function UpcomingTasks({ crop, events, loading, emptyHint }) {
   return (
     <TaskListCard
-      title="Upcoming Tasks"
-      description="No upcoming tasks yet. Future irrigation, fertilization and protection windows will be listed here once the personalized timeline is generated."
+      title="Upcoming"
+      icon={CalendarRange}
+      events={events}
+      loading={loading}
+      countLabel="planned"
+      emptyText={
+        emptyHint ??
+        `No upcoming tasks yet. Future irrigation, nutrition and protection windows for ${crop?.CropName || "this crop"} will appear here once the personalized timeline is generated.`
+      }
     />
   );
 }
