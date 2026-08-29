@@ -13,6 +13,18 @@ export function cropKey(crop, index) {
   return `${index}_${day}_${slug}`;
 }
 
+// Index-free suffix of a derived crop key ("_<date>_<slug>"). Stays stable
+// when another crop is deleted and indexes shift, so persisted timelines can
+// be recovered under their old key (findCropTimeline).
+export function cropKeySuffix(crop) {
+  if (crop?.cropId) return null; // explicit ids always match exactly
+  const day = (crop?.createdAt || "").slice(0, 10);
+  const slug = (crop?.CropName || "crop")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-");
+  return `_${day}_${slug}`;
+}
+
 // Sowing date — tolerates both stored spellings.
 export function getSowingDate(crop) {
   const raw = crop?.SowingDate ?? crop?.Sowingdate ?? null;

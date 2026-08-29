@@ -1,0 +1,49 @@
+// =============================================================================
+// Firestore security rules — Agri Monitor
+//
+// Enforces the ownership model the app code already follows by path:
+//   users/{uid}, crops/{uid}, timelineData/{uid}/crops/{cropId}/**
+// A signed-in user may ONLY read/write documents under their own auth uid.
+// Everything else is denied by default.
+//
+// DEPLOY (from the project root, one-time setup):
+//   npm i -g firebase-tools
+//   firebase login
+//   firebase init firestore   (choose existing project agri-monitor-36080,
+//                              rules file: firestore.rules, indexes: default)
+//   firebase deploy --only firestore:rules
+//
+// IMPORTANT: verify current deployed rules BEFORE deploying these — if the
+// project currently runs in open/test mode, lock it down as soon as possible.
+// =============================================================================
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // User profile document (personal info, display photo).
+    match /users/{uid} {
+      allow read, write: if isOwner(uid);
+    }
+
+    // Crop profiles (existing collection — read/write by owner only).
+    match /crops/{uid} {
+      allow read, write: if isOwner(uid);
+    }
+
+    // Personalized crop timeline subtree:
+    // timelineData/{uid}/crops/{cropId}/events|activities|observations|
+    // analyses|images|reviews/** — owner only, including all subcollections.
+    match /timelineData/{uid}/{document=**} {
+      allow read, write: if isOwner(uid);
+    }
+  }
+}

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  getTimeline,
+  findCropTimeline,
   getTodayEvents,
   getTimelineEvents,
   getUpcomingEvents,
@@ -9,7 +9,7 @@ import {
   getRecentAnalyses,
 } from "../../services/timelineService";
 import { fetchWeatherForCrop } from "../../services/weatherService";
-import { localDateISO, getGenerationState } from "../../lib/cropUtils";
+import { localDateISO, getGenerationState, cropKeySuffix } from "../../lib/cropUtils";
 
 // =============================================================================
 // useTimelineDashboard — read-only dashboard data assembly.
@@ -25,6 +25,7 @@ import { localDateISO, getGenerationState } from "../../lib/cropUtils";
 
 const EMPTY = {
   meta: null,
+  cropId: null,
   today: [],
   tomorrow: [],
   upcoming: [],
@@ -50,11 +51,15 @@ export default function useTimelineDashboard(uid, crop, cropId) {
     setLoading(true);
 
     // Meta + weather are independent — parallel, neither fatal to the other.
+    // Meta is resolved across candidate keys so a timeline survives the index
+    // shift caused by deleting another crop (one read in the common case).
     const [metaRes, weatherRes] = await Promise.allSettled([
-      getTimeline(uid, cropId),
+      findCropTimeline(uid, cropId, cropKeySuffix(crop)),
       fetchWeatherForCrop(crop, { forecastDays: 5 }),
     ]);
-    const meta = metaRes.status === "fulfilled" ? metaRes.value : null;
+    const resolved = metaRes.status === "fulfilled" ? metaRes.value : null;
+    const effCropId = resolved?.cropId ?? cropId;
+    const meta = resolved?.meta ?? null;
     const weather = weatherRes.status === "fulfilled" ? weatherRes.value : null;
     const weatherError =
       weatherRes.status === "rejected"
@@ -73,18 +78,18 @@ export default function useTimelineDashboard(uid, crop, cropId) {
       const reads = [
         ...(hasEvents
           ? [
-              getTodayEvents(uid, cropId),
-              getTimelineEvents(uid, cropId, {
+              getTodayEvents(uid, effCropId),
+              getTimelineEvents(uid, effCropId, {
                 startDate: localDateISO(1),
                 endDate: localDateISO(1),
                 limitTo: 10,
               }),
-              getUpcomingEvents(uid, cropId, 7),
+              getUpcomingEvents(uid, effCropId, 7),
             ]
           : []),
-        getRecentActivities(uid, cropId, 5),
-        getRecentObservations(uid, cropId, 5),
-        getRecentAnalyses(uid, cropId, 3),
+        getRecentActivities(uid, effCropId, 5),
+        getRecentObservations(uid, effCropId, 5),
+        getRecentAnalyses(uid, effCropId, 3),
       ];
       const results = await Promise.allSettled(reads);
       const pick = (i) =>
@@ -106,6 +111,7 @@ export default function useTimelineDashboard(uid, crop, cropId) {
     if (requestRef.current === requestId) {
       setData({
         meta,
+        cropId: effCropId,
         today,
         tomorrow,
         upcoming,
@@ -125,6 +131,9 @@ export default function useTimelineDashboard(uid, crop, cropId) {
 
   return {
     ...data,
+    // Resolved cropId (may differ from the derived key after an index shift);
+    // write-capable children must use this id.
+    cropId: data.cropId ?? cropId,
     loading,
     reload,
     generationState: getGenerationState(data.meta),

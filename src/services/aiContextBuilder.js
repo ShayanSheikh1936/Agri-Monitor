@@ -16,6 +16,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { fdb } from "../features/auth/firebase.js";
 import {
   cropKey,
+  cropKeySuffix,
   getSowingDate,
   getPlantAgeDays,
   getHealthStatus,
@@ -53,6 +54,12 @@ export async function buildCropAIContext(cropId, options = {}) {
     const snap = await getDoc(doc(fdb, "crops", uid));
     const crops = snap.exists() ? (snap.data()?.crops ?? []) : [];
     index = crops.findIndex((c, i) => cropKey(c, i) === cropId);
+    // Recover after an index shift (a deleted crop re-keys later crops):
+    // match by the stable date+name suffix of the derived key.
+    if (index === -1 && cropId.includes("_")) {
+      const suffix = cropId.slice(cropId.indexOf("_"));
+      index = crops.findIndex((c) => cropKeySuffix(c) === suffix);
+    }
     cropEntry = index >= 0 ? crops[index] : null;
   }
   if (!cropEntry) {

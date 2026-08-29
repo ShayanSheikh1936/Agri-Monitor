@@ -52,11 +52,13 @@ async function loadStoredEvents(uid, key, eventCount) {
 
 // Personalized crop lifecycle timeline. Loads stored events (bounded query,
 // only when the selected crop changes) and offers explicit generation/retry —
-// generation NEVER runs automatically on render.
-export default function CropTimeline({ crop, cropIndex = 0 }) {
+// generation NEVER runs automatically on render. `cropId` is the RESOLVED
+// timeline id from the page-level hook (may differ from the derived key
+// after another crop's deletion shifted indexes).
+export default function CropTimeline({ crop, cropIndex = 0, cropId = null }) {
   const { currentUser } = useAuth();
   const ageDays = getPlantAgeDays(crop);
-  const key = cropKey(crop, cropIndex);
+  const key = cropId ?? cropKey(crop, cropIndex);
 
   const [meta, setMeta] = useState(null);
   const [events, setEvents] = useState([]);

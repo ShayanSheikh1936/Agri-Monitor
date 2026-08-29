@@ -234,6 +234,29 @@ export async function getTimeline(uid, cropId) {
 }
 
 /**
+ * Resolves a crop's timeline even after an index shift (deleting another
+ * crop re-keys the remaining crops). Fast path: one read of the exact key.
+ * Orphan recovery: one bounded listing of this user's timeline metas (one
+ * small doc per crop) matched by the stable date+name suffix.
+ * Returns { cropId, meta } or null.
+ */
+export async function findCropTimeline(uid, exactKey, fallbackSuffix = null) {
+  assertUid(uid);
+  if (exactKey) {
+    const meta = await getTimeline(uid, exactKey);
+    if (meta) return { cropId: exactKey, meta };
+  }
+  if (!fallbackSuffix) return null;
+  const snap = await getDocs(collection(timelineRootRef(uid), TIMELINE_COLLECTIONS.crops));
+  for (const d of snap.docs) {
+    if (d.id.endsWith(fallbackSuffix)) {
+      return { cropId: d.id, meta: { id: d.id, ...d.data() } };
+    }
+  }
+  return null;
+}
+
+/**
  * Creates the metadata doc for a crop if it does not exist yet.
  * Idempotent — never overwrites an existing timeline, never touches the
  * existing `crops` collection. Stores only timeline-specific extended
@@ -298,6 +321,19 @@ export async function markGenerationAttempt(uid, cropId) {
   assertCropId(cropId);
   await updateDoc(cropTimelineRef(uid, cropId), {
     lastAttemptAt: serverTimestamp(),
+  });
+}
+
+/**
+ * Stamps the review start IMMEDIATELY (not at completion) so two
+ * near-simultaneous triggers — e.g. an activity log followed by an image
+ * analysis — hit the cooldown instead of firing two parallel AI calls.
+ */
+export async function markReviewStart(uid, cropId) {
+  assertUid(uid);
+  assertCropId(cropId);
+  await updateDoc(cropTimelineRef(uid, cropId), {
+    lastReviewAt: serverTimestamp(),
   });
 }
 
@@ -392,7 +428,7 @@ function normalizeEvent(cropId, event) {
  * regenerates a timeline). Batching keeps writes atomic per chunk and below
  * Firestore's 500-op batch limit.
  */
-export async function writeTimelineEvents(uid, cropId, events, { replace = false } = {}) {
+export async function writeTimelineEvents(uid, cropId, events, { replace = false, allowDestroyHistory = false } = {}) {
   assertUid(uid);
   assertCropId(cropId);
   if (!Array.isArray(events)) {
@@ -400,6 +436,19 @@ export async function writeTimelineEvents(uid, cropId, events, { replace = false
   }
 
   if (replace) {
+    // History guard: never wipe completed/skipped events unless explicitly
+    // allowed. Regeneration targets empty timelines; reviews are surgical.
+    if (!allowDestroyHistory) {
+      const [{ events: done }, { events: skippedEv }] = await Promise.all([
+        getTimelineEvents(uid, cropId, { status: "completed", limitTo: 1 }),
+        getTimelineEvents(uid, cropId, { status: "skipped", limitTo: 1 }),
+      ]);
+      if (done.length > 0 || skippedEv.length > 0) {
+        throw new Error(
+          "timelineService: refusing to replace a timeline with completed history."
+        );
+      }
+    }
     await deleteAllEvents(uid, cropId);
   }
 
@@ -519,16 +568,16 @@ export async function getTodayEvents(uid, cropId) {
   return events;
 }
 
-/** Next N upcoming events from today onward — the "Upcoming" panel. */
+/** Next N events from today onward — the "Upcoming" panel. Date-window query
+ *  (not status-based) so events an AI review moved to needs_attention /
+ *  postponed / today remain visible instead of disappearing. */
 export async function getUpcomingEvents(uid, cropId, count = 7) {
   const today = toDateString();
   const { events } = await getTimelineEvents(uid, cropId, {
-    status: "upcoming",
-    limitTo: Math.max(count * 4, 30),
+    startDate: today,
+    limitTo: Math.max(count * 2, 14),
   });
-  return events
-    .filter((e) => !e.date || e.date >= today)
-    .slice(0, count);
+  return events.slice(0, count);
 }
 
 /**

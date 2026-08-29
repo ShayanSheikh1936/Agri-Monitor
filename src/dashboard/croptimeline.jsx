@@ -37,7 +37,12 @@ export default function CropTimelinePage() {
   const key = crop ? cropKey(crop, safeIndex) : null;
 
   // Read-only persisted timeline data (bounded reads, no regeneration).
+  // Meta is resolved by a stable date+name suffix so the timeline survives
+  // the index shift caused by deleting another crop.
   const dash = useTimelineDashboard(currentUser?.uid ?? null, crop, key);
+
+  // Write-capable children must use the RESOLVED cropId, not the derived key.
+  const effectiveKey = dash.cropId ?? key;
 
   // No crops yet — honest empty state, same pattern as dashboard.jsx
   if (!crop) {
@@ -132,7 +137,7 @@ export default function CropTimelinePage() {
       {/* Main grid */}
       <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3">
         <div className="grid content-start gap-4 xl:col-span-2">
-          <CropTimeline crop={crop} cropIndex={safeIndex} />
+          <CropTimeline crop={crop} cropIndex={safeIndex} cropId={dash.cropId} />
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <TodayTasks
               crop={crop}
@@ -153,7 +158,7 @@ export default function CropTimelinePage() {
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <ActivityLogger
               uid={currentUser?.uid ?? null}
-              cropId={key}
+              cropId={effectiveKey}
               crop={crop}
               onLogged={dash.reload}
             />
@@ -193,7 +198,7 @@ export default function CropTimelinePage() {
         <CropImageAnalysis
           crop={crop}
           uid={currentUser?.uid ?? null}
-          cropId={key}
+          cropId={effectiveKey}
           onAnalyzed={dash.reload}
         />
         <AskAI crop={crop} />

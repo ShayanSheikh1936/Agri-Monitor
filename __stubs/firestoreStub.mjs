@@ -92,8 +92,21 @@ export async function getDocs(arg) {
       data: () => data,
     }));
   for (const c of constraints) {
-    if (c.t === "where" && c.op === "==") {
-      docs = docs.filter((d) => d.data()[c.f] === c.v);
+    if (c.t === "where") {
+      docs = docs.filter((d) => {
+        const dv = d.data()[c.f];
+        if (c.op === "==") return dv === c.v;
+        if (dv === undefined || dv === null) return false;
+        const cmp =
+          c.v && typeof c.v === "object" && "__ts" in c.v
+            ? (dv.__ts ?? 0) - (c.v.__ts ?? 0)
+            : String(dv).localeCompare(String(c.v));
+        if (c.op === ">=") return cmp >= 0;
+        if (c.op === "<=") return cmp <= 0;
+        if (c.op === ">") return cmp > 0;
+        if (c.op === "<") return cmp < 0;
+        return false;
+      });
     } else if (c.t === "orderBy") {
       docs.sort((a, b) => compare(a, b, c.f, c.dir));
     } else if (c.t === "limit") {

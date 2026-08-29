@@ -1086,6 +1086,15 @@ export async function reviewCropTimeline(uid, cropId, options = {}) {
     };
   }
 
+  // Stamp the review start NOW (not at completion) so a second trigger that
+  // arrives while this review is still running hits the cooldown instead of
+  // firing a parallel AI call. Best effort — never blocks the review itself.
+  try {
+    await timelineService.markReviewStart(uid, cropId);
+  } catch {
+    /* non-fatal — cooldown would then apply from completion as before */
+  }
+
   // ---- Upcoming events (update candidates) + completed context ----
   let upcoming = [];
   let recentCompleted = [];
