@@ -18,6 +18,8 @@ const OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast";
 const REQUEST_TIMEOUT_MS = 10_000;
 const DEFAULT_FORECAST_DAYS = 7;
 const CACHE_TTL_MS = 15 * 60 * 1000;
+// The forecast page only ever renders the next 48 hours of hourly data.
+const HOURLY_WINDOW_HOURS = 48;
 
 // Informational rainfall thresholds (mm/day) — context, never decisions.
 export const RAIN_MM_TRACE = 1; // a "rain day"
@@ -128,8 +130,8 @@ function assertCoordinates(latitude, longitude) {
 
 const cache = new Map();
 
-function cacheKey(lat, lon, days) {
-  return `${lat.toFixed(2)},${lon.toFixed(2)},${days}`;
+function cacheKey(lat, lon, days, hourly) {
+  return `${lat.toFixed(2)},${lon.toFixed(2)},${days},${hourly ? 1 : 0}`;
 }
 
 export function clearWeatherCache() {
@@ -140,17 +142,71 @@ export function clearWeatherCache() {
 // Fetch + normalization
 // -----------------------------------------------------------------------------
 
-async function requestOpenMeteo(lat, lon, forecastDays) {
+async function requestOpenMeteo(lat, lon, forecastDays, hourly = false) {
+  // Only request fields the UI actually renders. Hourly data is opt-in so
+  // lightweight consumers (dashboard card, AI context) keep small payloads.
+  const current = [
+    "temperature_2m",
+    "relative_humidity_2m",
+    "precipitation",
+    "weather_code",
+    "wind_speed_10m",
+    "is_day",
+  ];
+  const daily = [
+    "temperature_2m_max",
+    "temperature_2m_min",
+    "precipitation_sum",
+    "precipitation_probability_max",
+    "weather_code",
+    "wind_speed_10m_max",
+  ];
+  if (hourly) {
+    current.push(
+      "apparent_temperature",
+      "surface_pressure",
+      "cloud_cover",
+      "wind_direction_10m"
+    );
+    daily.push(
+      "sunrise",
+      "sunset",
+      "wind_direction_10m_dominant",
+      "uv_index_max",
+      "et0_fao_evapotranspiration",
+      "daylight_duration",
+      "sunshine_duration"
+    );
+  }
+
   const params = new URLSearchParams({
     latitude: String(lat),
     longitude: String(lon),
-    current:
-      "temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m,is_day",
-    daily:
-      "temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,weather_code,wind_speed_10m_max",
+    current: current.join(","),
+    daily: daily.join(","),
     timezone: "auto",
     forecast_days: String(forecastDays),
   });
+  if (hourly) {
+    params.set(
+      "hourly",
+      [
+        "temperature_2m",
+        "apparent_temperature",
+        "precipitation_probability",
+        "precipitation",
+        "relative_humidity_2m",
+        "wind_speed_10m",
+        "wind_direction_10m",
+        "cloud_cover",
+        "weather_code",
+        "is_day",
+        "dew_point_2m",
+        "soil_moisture_0_to_1cm",
+        "soil_temperature_0cm",
+      ].join(",")
+    );
+  }
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -194,7 +250,7 @@ function num(value) {
   return Number.isFinite(n) ? n : null;
 }
 
-function normalizeWeather(raw, lat, lon) {
+function normalizeWeather(raw, lat, lon, hourly = false) {
   if (!raw?.current || !Array.isArray(raw?.daily?.time)) {
     throw new WeatherError(
       WEATHER_ERROR_CODES.UNAVAILABLE,
@@ -217,6 +273,13 @@ function normalizeWeather(raw, lat, lon) {
         d.precipitation_probability_max?.[i]
       ),
       windSpeedMaxKmh: num(d.wind_speed_10m_max?.[i]),
+      windDirectionDominantDeg: num(d.wind_direction_10m_dominant?.[i]),
+      uvIndexMax: num(d.uv_index_max?.[i]),
+      et0Mm: num(d.et0_fao_evapotranspiration?.[i]),
+      daylightHours: secToHours(d.daylight_duration?.[i]),
+      sunshineHours: secToHours(d.sunshine_duration?.[i]),
+      sunrise: typeof d.sunrise?.[i] === "string" ? d.sunrise[i] : null,
+      sunset: typeof d.sunset?.[i] === "string" ? d.sunset[i] : null,
       weatherCode,
       condition: describeWeatherCode(weatherCode),
       isRainExpected:
@@ -240,14 +303,19 @@ function normalizeWeather(raw, lat, lon) {
     coordinates: { lat, lon },
     current: {
       temperatureC: num(c.temperature_2m),
+      apparentTemperatureC: num(c.apparent_temperature),
       humidityPercent: num(c.relative_humidity_2m),
       precipitationMm: num(c.precipitation),
       windSpeedKmh: num(c.wind_speed_10m),
+      windDirectionDeg: num(c.wind_direction_10m),
+      pressureHpa: num(c.surface_pressure),
+      cloudCoverPercent: num(c.cloud_cover),
       weatherCode: num(c.weather_code),
       condition: describeWeatherCode(c.weather_code),
       isDay: c.is_day === 1,
     },
     daily,
+    hourly: hourly ? normalizeHourly(raw) : [],
     // Contextual signals only — facts for AI/planning to interpret,
     // never automated irrigation/skipping decisions.
     context: {
@@ -265,8 +333,53 @@ function normalizeWeather(raw, lat, lon) {
   };
 }
 
+// Hourly entries are only present when requested (options.hourly). Times are
+// location-local ISO strings (timezone=auto); we start the window at the
+// current local hour and cap it so the page never renders a huge dataset.
+function normalizeHourly(raw) {
+  const times = raw?.hourly?.time;
+  if (!Array.isArray(times) || times.length === 0) return [];
+
+  const h = raw.hourly;
+  const nowLocal =
+    typeof raw?.current?.time === "string" ? raw.current.time : null;
+  let start = 0;
+  if (nowLocal) {
+    const idx = times.findIndex((t) => t >= nowLocal);
+    start = idx === -1 ? 0 : idx;
+  }
+
+  return times.slice(start, start + HOURLY_WINDOW_HOURS).map((time, slice) => {
+    const i = start + slice;
+    const weatherCode = num(h.weather_code?.[i]);
+    return {
+      time,
+      temperatureC: num(h.temperature_2m?.[i]),
+      apparentTemperatureC: num(h.apparent_temperature?.[i]),
+      precipitationProbabilityPercent: num(h.precipitation_probability?.[i]),
+      precipitationMm: num(h.precipitation?.[i]),
+      humidityPercent: num(h.relative_humidity_2m?.[i]),
+      windSpeedKmh: num(h.wind_speed_10m?.[i]),
+      windDirectionDeg: num(h.wind_direction_10m?.[i]),
+      cloudCoverPercent: num(h.cloud_cover?.[i]),
+      dewPointC: num(h.dew_point_2m?.[i]),
+      soilMoistureM3m3: num(h.soil_moisture_0_to_1cm?.[i]),
+      soilTemperatureC: num(h.soil_temperature_0cm?.[i]),
+      weatherCode,
+      condition: describeWeatherCode(weatherCode),
+      isDay: h.is_day?.[i] === 1,
+    };
+  });
+}
+
 function round1(value) {
   return Math.round(value * 10) / 10;
+}
+
+// Open-Meteo returns daylight/sunshine durations in seconds.
+function secToHours(value) {
+  const n = num(value);
+  return n === null ? null : round1(n / 3600);
 }
 
 // -----------------------------------------------------------------------------
@@ -284,15 +397,16 @@ export async function fetchWeather(latitude, longitude, options = {}) {
     Math.max(Number(options.forecastDays ?? DEFAULT_FORECAST_DAYS) || 7, 1),
     14
   );
+  const hourly = options.hourly === true;
 
-  const key = cacheKey(lat, lon, forecastDays);
+  const key = cacheKey(lat, lon, forecastDays, hourly);
   if (options.useCache !== false) {
     const hit = cache.get(key);
     if (hit && hit.expiresAt > Date.now()) return hit.data;
   }
 
-  const raw = await requestOpenMeteo(lat, lon, forecastDays);
-  const weather = normalizeWeather(raw, lat, lon);
+  const raw = await requestOpenMeteo(lat, lon, forecastDays, hourly);
+  const weather = normalizeWeather(raw, lat, lon, hourly);
 
   cache.set(key, { data: weather, expiresAt: Date.now() + CACHE_TTL_MS });
   // Guard against unbounded growth across many crops/fields.
