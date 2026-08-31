@@ -1,4 +1,5 @@
 import { Send } from "lucide-react";
+import { Link } from "react-router-dom";
 import styles from "./footer.module.css"
 export default function Footer() {
     return (
@@ -10,11 +11,10 @@ export default function Footer() {
                 </div>
                 <div className="container flex flex-col gap-10 ">
                     <div className={`relative flex justify-end uppercase font-sans  gap-2 items-center container  text-black ${styles.newslatter}`}><span>
-                        <form action="" className={`px-2 pb-2 rounded-bl-2xl flex gap-2 w-fit bg-[var(--bg)] items-center text-black ${styles.newslatter}`}>
-                            <label htmlFor="">Join Our Newslatter</label>
-                            <input type="text" className="bg-white px-3 py-3 rounded-4xl text-black " placeholder="Enter Your Email" name="newslatter" onChange={null} />
-                            <button className="bg-[var(--text1)] rounded-full p-3 grid place-items-center" onClick={() => console.log("shyan")
-                            }><Send color="white" /></button>
+                        <form onSubmit={(e) => e.preventDefault()} className={`px-2 pb-2 rounded-bl-2xl flex gap-2 w-fit bg-[var(--bg)] items-center text-black ${styles.newslatter}`}>
+                            <label htmlFor="newslatter-email">Join Our Newsletter</label>
+                            <input id="newslatter-email" type="email" className="bg-white px-3 py-3 rounded-4xl text-black " placeholder="Enter Your Email" name="newslatter" />
+                            <button type="submit" className="bg-[var(--text1)] rounded-full p-3 grid place-items-center cursor-pointer"><Send color="white" /></button>
                         </form>
                     </span>
                     </div>
@@ -22,11 +22,11 @@ export default function Footer() {
                         <div>
                             <ul className={`leading-loose ${styles.footerNav}`}>
                                 <header className="font-semibold text-2xl pb-2 underline">Pages</header>
-                                <li >Home</li>
-                                <li>Services</li>
-                                <li>Features</li>
-                                <li>Blogs</li>
-                                <li>Contact Us</li>
+                                <li><Link to="/">Home</Link></li>
+                                <li><Link to="/services">Services</Link></li>
+                                <li><Link to="/features">Features</Link></li>
+                                <li><Link to="/blogs">Blogs</Link></li>
+                                <li><Link to="/contact">Contact Us</Link></li>
                             </ul>
                         </div>
                         <div>

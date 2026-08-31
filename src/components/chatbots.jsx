@@ -2,6 +2,7 @@ import {
   ChevronRight,
   LanguagesIcon,
   Maximize,
+  Minimize,
   Plus,
   Send,
   Sprout,
@@ -11,11 +12,11 @@ import {
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useState, useRef, useEffect } from "react";
-import { Link } from "react-router-dom";
 import styles from "./chatbots.module.css";
 
 export default function Chatbot({ userinfo }) {
   const [show, setshow] = useState(false);
+  const [maximized, setMaximized] = useState(false);
   const [langValue, setlangValue] = useState("English");
   const [showfeatures, setshowfeatures] = useState(false);
   const [Langshow, setLangshow] = useState(false);
@@ -334,13 +335,13 @@ export default function Chatbot({ userinfo }) {
 
     
       <div
-        className="fixed bottom-5 right-0 w-fit"
+        className={`fixed bottom-5 right-0 ${maximized ? "w-full h-full p-2 sm:p-4" : "w-fit"}`}
         style={{
           transition: "1s ease-in-out",
-          maxWidth: "450px",
-          margin: "10px auto",
+          maxWidth: maximized ? "100%" : "450px",
+          margin: maximized ? "0" : "10px auto",
           borderRadius: "10px",
-          padding: "10px",
+          padding: maximized ? "0" : "10px",
           transform: `translateX(${show ? "0" : "100%"})`,
           zIndex: show ? "10000" : "0",
         }}
@@ -361,13 +362,13 @@ export default function Chatbot({ userinfo }) {
           </div>
 
           <div className="flex gap-1">
-            <Link
-              title="Maximize"
-              to="/"
+            <button
+              title={maximized ? "Restore" : "Maximize"}
+              onClick={() => setMaximized(!maximized)}
               className="cursor-pointer bg-[var(--bg)] rounded-full p-1.5"
             >
-              <Maximize color={"var(--text1)"} />
-            </Link>
+              {maximized ? <Minimize color={"var(--text1)"} /> : <Maximize color={"var(--text1)"} />}
+            </button>
 
             <button
               title="close"
@@ -384,7 +385,7 @@ export default function Chatbot({ userinfo }) {
           ref={chatContainerRef}
           className="border-l-2 border-r-2 border-[var(--text1)] scrollbar-thumb-amber-50 rounded-t-[5px]"
           style={{
-            height: "350px",
+            height: maximized ? "calc(100dvh - 190px)" : "350px",
             overflowY: "auto",
             padding: "10px",
             background: "var(--bg)",
@@ -519,13 +520,15 @@ export default function Chatbot({ userinfo }) {
             />
 
             {/* Features */}
-            <button
-              onClick={() =>
-                setshowfeatures(!showfeatures)
-              }
-              className="mr-1 rounded-full bg-[var(--text1)] grid place-items-center h-10 w-10 relative inline-block cursor-pointer"
-            >
-              <Plus size={28} color="white" />
+            <div className="mr-1 rounded-full bg-[var(--text1)] grid place-items-center h-10 w-10 relative inline-block">
+              <button
+                onClick={() =>
+                  setshowfeatures(!showfeatures)
+                }
+                className="grid place-items-center h-10 w-10 cursor-pointer"
+              >
+                <Plus size={28} color="white" />
+              </button>
 
               <div
                 className={`${styles.features} scrollbar-thumb-[var(--text1)] scrollbar-thin`}
@@ -546,7 +549,7 @@ export default function Chatbot({ userinfo }) {
                   Upload Image
                 </button>
               </div>
-            </button>
+            </div>
 
             {/* Text input */}
             <input
@@ -569,13 +572,15 @@ export default function Chatbot({ userinfo }) {
             />
 
             {/* Language */}
-            <button
-              onClick={() =>
-                setLangshow(!Langshow)
-              }
-              className="ml-1 rounded-full bg-[var(--text1)] grid place-items-center h-10 w-10 relative inline-block cursor-pointer"
-            >
-              <LanguagesIcon color="white" />
+            <div className="ml-1 rounded-full bg-[var(--text1)] grid place-items-center h-10 w-10 relative inline-block">
+              <button
+                onClick={() =>
+                  setLangshow(!Langshow)
+                }
+                className="grid place-items-center h-10 w-10 cursor-pointer"
+              >
+                <LanguagesIcon color="white" />
+              </button>
 
               <div
                 className={`${styles.lang} scrollbar-thumb-[var(--text1)] scrollbar-thin`}
@@ -602,7 +607,7 @@ export default function Chatbot({ userinfo }) {
                   );
                 })}
               </div>
-            </button>
+            </div>
 
             {/* Send */}
             <button

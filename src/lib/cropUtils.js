@@ -25,20 +25,38 @@ export function cropKeySuffix(crop) {
   return `_${day}_${slug}`;
 }
 
-// Sowing date — tolerates both stored spellings.
+// Sowing date — tolerates both stored spellings, Firestore Timestamps,
+// Date objects and "yyyy-mm-dd" strings (anchored at LOCAL midnight so the
+// age never drifts by a day because of timezone offsets).
 export function getSowingDate(crop) {
   const raw = crop?.SowingDate ?? crop?.Sowingdate ?? null;
   if (!raw) return null;
+  // Firestore Timestamp (or anything date-like) with a toDate() helper.
+  if (typeof raw?.toDate === "function") {
+    const d = raw.toDate();
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  // "yyyy-mm-dd" from the date input — parse as local midnight.
+  if (typeof raw === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    const [y, m, d] = raw.split("-").map(Number);
+    const date = new Date(y, m - 1, d);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
   const d = new Date(raw);
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-// Live plant age in days (recomputed from sowing date; falls back to the
-// stored plantAgeDays which is frozen at creation time).
+// Live plant age in days — ALWAYS recomputed from the sowing date against
+// the actual current day, so the dashboard shows the real age every time it
+// is rendered (falls back to the stored plantAgeDays only when no sowing
+// date exists at all).
 export function getPlantAgeDays(crop) {
   const sowing = getSowingDate(crop);
   if (sowing) {
-    return Math.max(Math.floor((Date.now() - sowing.getTime()) / 86400000), 0);
+    const start = new Date(sowing.getFullYear(), sowing.getMonth(), sowing.getDate());
+    const today = new Date();
+    const nowDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    return Math.max(Math.round((nowDay.getTime() - start.getTime()) / 86400000), 0);
   }
   const stored = Number(crop?.plantAgeDays);
   return Number.isFinite(stored) && stored > 0 ? stored : null;

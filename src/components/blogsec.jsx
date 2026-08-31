@@ -1,4 +1,5 @@
 import { ArrowRight, CalendarDays, Clock, Sprout } from "lucide-react";
+import { Link } from "react-router-dom";
 import background3 from "../assets/background3.png";
 
 const posts = [
@@ -135,9 +136,9 @@ export default function BlogSec() {
                 </div>
 
                 <div className="flex justify-center pt-4">
-                    <button className="bebas-neue-regular rounded-full bg-[#679936] px-8 py-3 text-2xl text-[var(--text-h)] transition-colors hover:bg-[#4a7028]">
+                    <Link to="/blogs" className="bebas-neue-regular rounded-full bg-[#679936] px-8 py-3 text-2xl text-[var(--text-h)] transition-colors hover:bg-[#4a7028]">
                         View All Articles
-                    </button>
+                    </Link>
                 </div>
             </div>
         </section>

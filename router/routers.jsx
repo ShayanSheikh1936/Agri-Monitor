@@ -14,6 +14,7 @@ import Blogs from "../src/pages/blogs";
 import Features from "../src/pages/features";
 import Services from "../src/pages/services";
 import ServiceDetail from "../src/pages/serviceDetail";
+import NotFound from "../src/pages/notfound";
 import { lazy, Suspense } from "react";
 
 // Lazy-loaded so the Crop Timeline page is code-split out of the initial bundle
@@ -34,30 +35,43 @@ export default function Routers() {
             // element: <Layout />,
             children: [
                 {
-                    index: true,
-                    element: [<Home />, <Layout />]
-                }, {
+                    // Public pages that share the Navbar + Footer chrome
+                    element: <Layout />,
+                    children: [
+                        {
+                            index: true,
+                            element: <Home />
+                        },
+                        {
+                            path: "/features",
+                            element: <Features />
+                        },
+                        {
+                            path: "/contact",
+                            element: <ContactUs />
+                        },
+                        {
+                            path: "/blogs",
+                            element: <Blogs />
+                        },
+                        {
+                            path: "/services",
+                            element: <Services />
+                        },
+                    ]
+                },
+                {
+                    // Service detail renders WITHOUT the Navbar/Footer chrome
+                    path: "/services/:serviceId",
+                    element: <ServiceDetail />
+                },
+                {
                     path: "/login",
                     element: <Login />
                 }
                 , {
                     path: "/signup",
                     element: <Signup />
-                }, {
-                    path: "/features",
-                    element: [<Features />, <Layout />]
-                },
-                {
-                    path: "/contact",
-                    element: [<ContactUs />, <Layout/>]
-                },
-                {
-                    path: "/blogs",
-                    element:[<Blogs />, <Layout/>]
-                },
-                {
-                    path: "/services/:serviceId",
-                    element: <ServiceDetail />
                 },
                 {
                     path: "/personalinfo",
@@ -86,7 +100,7 @@ export default function Routers() {
                         },
                         {
                             path: "/dashboard/cropsuggestion",
-                            element: <h1>irrigation</h1>,
+                            element: <h1 className="text-2xl flex-6">crop suggestion</h1>,
                         },
                         {
                             path: "/dashboard/weatherforecast",
@@ -98,17 +112,17 @@ export default function Routers() {
                         },
                         {
                             path: "/dashboard/weatheralerts",
-                            element: <h1>fertilizers</h1>,
+                            element: <h1 className="text-2xl flex-6">weather alerts</h1>,
                         },
                         {
                             path: "/dashboard/weatherwarnings",
-                            element: <h1>pesticides</h1>,
+                            element: <h1 className="text-2xl flex-6">weather warnings</h1>,
                         },{
                             path: "/dashboard/marketplace",
-                            element: <h1>pesticides</h1>,
+                            element: <h1 className="text-2xl flex-6">marketplace</h1>,
                         },{
                             path: "/dashboard/disasteralerts",
-                            element: <h1>pesticides</h1>,
+                            element: <h1 className="text-2xl flex-6">disaster alerts</h1>,
                         },{
                             path: "/dashboard/croptimeline",
                             element: (
@@ -118,6 +132,11 @@ export default function Routers() {
                             ),
                         }
                     ]
+                },
+                {
+                    // Catch-all 404 route
+                    path: "*",
+                    element: <NotFound />
                 }
             ]
         }

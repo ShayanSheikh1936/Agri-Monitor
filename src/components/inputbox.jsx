@@ -8,7 +8,6 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 
 // External Services Import
 import { executeGoogleSignIn, executeFormSignUp, executeFormLogin } from "./formServices";
-import { log } from "firebase/firestore/pipelines";
 import { auth, fdb, Googleprovider } from "../features/auth/firebase";
 import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
 
@@ -83,7 +82,7 @@ export function ReactHookForm() {
                         />
                         <label
                             htmlFor="input-field"
-                            className={`text-[#cccccc00] inputLabel top-0 text-[0px] peer-focus:-top-[15px] peer-focus:text-[15px] peer-focus:bg-[#D7E8C0] ${errors.firstname ? "peer-focus:text-red-600" : "peer-focus:text-green-700"}`}
+                            className={`inputLabel ${errors.firstname ? "-top-[15px] text-[15px] bg-[#D7E8C0] text-red-600" : "text-[#cccccc00] top-0 text-[0px] peer-focus:-top-[15px] peer-focus:text-[15px] peer-focus:bg-[#D7E8C0] peer-focus:text-green-700"}`}
                         >
                             {errors.firstname ? errors.firstname.message : "First Name"}
                         </label>
@@ -99,8 +98,7 @@ export function ReactHookForm() {
                         />
                         <label
                             htmlFor="input-field"
-                            className={`text-[#cccccc00] top-0 text-[0px] peer-focus:-top-[15px] peer-focus:text-[15px] peer-focus:bg-[#D7E8C0] inputLabel ${errors.lastname ? "peer-focus:text-red-600" : "peer-focus:text-green-700"
-                                }`}
+                            className={`inputLabel ${errors.lastname ? "-top-[15px] text-[15px] bg-[#D7E8C0] text-red-600" : "text-[#cccccc00] top-0 text-[0px] peer-focus:-top-[15px] peer-focus:text-[15px] peer-focus:bg-[#D7E8C0] peer-focus:text-green-700"}`}
                         >
                             {errors.lastname ? errors.lastname.message : "Last Name"}
                         </label>
@@ -112,7 +110,7 @@ export function ReactHookForm() {
                     <input
                         className={`peer block bg-transparent ${errors.EmailAddress ? "outline-1 outline-red-700" : "outline-1 outline-green-700"
                             } w-full px-3 py-2 rounded-[10px] text-black input-field`}
-                        type="text"
+                        type="email"
                         {...register("EmailAddress", {
                             required: "Enter Your Email Address",
                             pattern: {
@@ -124,8 +122,7 @@ export function ReactHookForm() {
                     />
                     <label
                         htmlFor="input-field"
-                        className={`text-[#cccccc00] top-0 text-[0px] peer-focus:-top-[15px] peer-focus:text-[15px] peer-focus:bg-[#D7E8C0] inputLabel ${errors.EmailAddress ? "peer-focus:text-red-600" : "peer-focus:text-green-700"
-                            }`}
+                        className={`inputLabel ${errors.EmailAddress ? "-top-[15px] text-[15px] bg-[#D7E8C0] text-red-600" : "text-[#cccccc00] top-0 text-[0px] peer-focus:-top-[15px] peer-focus:text-[15px] peer-focus:bg-[#D7E8C0] peer-focus:text-green-700"}`}
                     >
                         {errors.EmailAddress ? errors.EmailAddress.message : "Email Address"}
                     </label>
@@ -136,7 +133,7 @@ export function ReactHookForm() {
                     <input 
                         className={`peer block bg-transparent ${errors.passwords ? "outline-1 outline-red-700" : "outline-1 outline-green-700"
                             } w-full px-3 py-2 rounded-[10px] text-black input-field`}
-                        type="text"
+                        type="password"
                         {...register("passwords", {
                             required: "Enter Password",
                             pattern: {
@@ -148,8 +145,7 @@ export function ReactHookForm() {
                     />
                     <label
                         htmlFor="input-field"
-                        className={`text-[#cccccc00] top-0 text-[0px] peer-focus:-top-[15px] peer-focus:text-[15px] peer-focus:bg-[#D7E8C0] inputLabel ${errors.passwords ? "peer-focus:text-red-600" : "peer-focus:text-green-700"
-                            }`}
+                        className={`inputLabel ${errors.passwords ? "-top-[15px] text-[15px] bg-[#D7E8C0] text-red-600" : "text-[#cccccc00] top-0 text-[0px] peer-focus:-top-[15px] peer-focus:text-[15px] peer-focus:bg-[#D7E8C0] peer-focus:text-green-700"}`}
                     >
                         {errors.passwords ? errors.passwords.message : "Password"}
                     </label>
@@ -170,8 +166,7 @@ export function ReactHookForm() {
                     />
                     <label
                         htmlFor="input-field"
-                        className={`text-[#cccccc00] top-0 text-[0px] peer-focus:-top-[15px] peer-focus:text-[15px] peer-focus:bg-[#D7E8C0] inputLabel ${errors.checkpassword ? "peer-focus:text-red-600" : "peer-focus:text-green-700"
-                            }`}
+                        className={`inputLabel ${errors.checkpassword ? "-top-[15px] text-[15px] bg-[#D7E8C0] text-red-600" : "text-[#cccccc00] top-0 text-[0px] peer-focus:-top-[15px] peer-focus:text-[15px] peer-focus:bg-[#D7E8C0] peer-focus:text-green-700"}`}
                     >
                         {errors.checkpassword ? errors.checkpassword.message : "Confirm Password"}
                     </label>
@@ -203,6 +198,9 @@ export function ReactHookForm() {
                         Check Terms & Condition for additional resources.
                     </label>
                 </span>
+                {errors["terms&condition"] && (
+                    <p className="text-red-600 text-[13px] w-full pl-1">Please accept the Terms & Conditions to continue.</p>
+                )}
 
                 {/* Submit */}
                 <button
@@ -280,13 +278,13 @@ export function ReactHookFormlogin({ styles, name, required, placeholder, type, 
                     </p>
                 )}
                 <span className="w-full relative">
-                    <input className={`peer block bg-transparent ${errors.EmailAddress ? "outline-1 outline-red-700" : "outline-1 outline-green-700"} w-full px-3 py-2 rounded-[10px] text-black input-field`} type="text" {...register("EmailAddress", { required: "Enter Your Email Address", pattern: { value: /^\S+@\S+\.\S+$/, message: "Email is not valid"} })} maxLength={60}  placeholder="Enter Your Email Address" />
-                    <label htmlFor="input-field" className={`text-[#cccccc00] top-0 text-[0px] peer-focus:-top-[15px] peer-focus:text-[15px] peer-focus:bg-[#D7E8C0] inputLabel ${errors.EmailAddress ? "peer-focus:text-red-600" : "peer-focus:text-green-700"}`}>{errors.EmailAddress ? errors.EmailAddress.message : "Email Address"} </label>
+                    <input className={`peer block bg-transparent ${errors.EmailAddress ? "outline-1 outline-red-700" : "outline-1 outline-green-700"} w-full px-3 py-2 rounded-[10px] text-black input-field`} type="email" {...register("EmailAddress", { required: "Enter Your Email Address", pattern: { value: /^\S+@\S+\.\S+$/, message: "Email is not valid"} })} maxLength={60}  placeholder="Enter Your Email Address" />
+                    <label htmlFor="input-field" className={`inputLabel ${errors.EmailAddress ? "-top-[15px] text-[15px] bg-[#D7E8C0] text-red-600" : "text-[#cccccc00] top-0 text-[0px] peer-focus:-top-[15px] peer-focus:text-[15px] peer-focus:bg-[#D7E8C0] peer-focus:text-green-700"}`}>{errors.EmailAddress ? errors.EmailAddress.message : "Email Address"} </label>
                 </span>
                 {/* {errors.EmailAddress && <p className="text-red-600">{errors.EmailAddress.message}</p>} */}
                 <span className="relative w-full">
-                    <input className={`peer block bg-transparent ${errors.passwords ? "outline-1 outline-red-700" : "outline-1 outline-green-700"} w-full px-3 py-2 rounded-[10px] text-black input-field`} type="password" {...register("passwords", { required: "Enter Password", pattern: { value: /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/, message: "password must contain ABC" } })} placeholder="Enter Your Password" />
-                    <label htmlFor="input-field" className={`text-[#cccccc00] top-0 text-[0px] peer-focus:-top-[15px] peer-focus:text-[15px] peer-focus:bg-[#D7E8C0] inputLabel ${errors.passwords ? "peer-focus:text-red-600" : "peer-focus:text-green-700"}`}>{errors.passwords ? errors.passwords.message : "Password"} </label>
+                    <input className={`peer block bg-transparent ${errors.passwords ? "outline-1 outline-red-700" : "outline-1 outline-green-700"} w-full px-3 py-2 rounded-[10px] text-black input-field`} type="password" {...register("passwords", { required: "Enter Password", pattern: { value: /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/, message: "Password must be 8+ characters with letters, numbers & a special character" } })} placeholder="Enter Your Password" />
+                    <label htmlFor="input-field" className={`inputLabel ${errors.passwords ? "-top-[15px] text-[15px] bg-[#D7E8C0] text-red-600" : "text-[#cccccc00] top-0 text-[0px] peer-focus:-top-[15px] peer-focus:text-[15px] peer-focus:bg-[#D7E8C0] peer-focus:text-green-700"}`}>{errors.passwords ? errors.passwords.message : "Password"} </label>
                 </span>
                 {/* <span className="relative w-full">
                     <input className={`peer bg-transparent input-field ${errors.checkpassword ? "outline-1 outline-red-700" : "outline-1 outline-green-700"} w-full px-3 py-2 rounded-[10px] text-black`} type="password" {...register("checkpassword", { required: true, validate: (value) => value === password || "Passwords do not match" })} placeholder="Confirm Your Password" />

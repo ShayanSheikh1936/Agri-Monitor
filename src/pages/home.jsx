@@ -153,15 +153,13 @@ export default function Home() {
                     <div className="bg-[#679936] w-fit text-[var(--text-h)] p-5 pr-12 tracking-wider mt-4 text-3xl lg:text-5xl md:text-5xl bebas-neue-regular rounded-r-full">Optimize Resource Management</div>
                     <p className="lg:w-1/2 md:w-3/4 w-fit  text-black pl-5 font-sans text-1xl">Take the guesswork out of farming. By simply selecting your crop and entering your planting date, our smart engine calculates exactly what your field needs—day by day, start to harvest.</p>
                 </div>
-                <div className="flex flex-nowrap overflow-x-scroll scrollbar-none pt-14 pb-10 ml-1 mr-1 ">
-                    <div className="flex gap-3">
-                        {
-                            data.map((value) => {
+                <div className="flex gap-3 flex-nowrap overflow-x-auto scrollbar-none pt-14 pb-10 ml-1 mr-1">
+                    {
+                        data.map((value) => {
 
-                                return <Fragment key={value.id}><DetailsBox icons={value.icon} headings={value.title} lists={value.list} /></Fragment>
-                            })
-                        }
-                    </div>
+                            return <Fragment key={value.id}><DetailsBox icons={value.icon} headings={value.title} lists={value.list} /></Fragment>
+                        })
+                    }
                 </div>
             </section>
             <section className="w-full bg-cover bg-center bg-no-repeat flex flex-col gap-5 items-center px-5" style={{ background: `linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url(${background1}) center center/cover fixed` }}>

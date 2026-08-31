@@ -273,7 +273,7 @@ export default function WeatherForecastPage() {
             <SoilCard weather={weather} />
           </div>
           <p className="text-[11px] text-black/40 pb-2">
-            Weather data by Open-Meteo for{" "}
+            Weather data by Qoder for{" "}
             {page.selected?.gps
               ? `${page.selected.gps.lat.toFixed(3)}, ${page.selected.gps.lon.toFixed(3)}`
               : "your field location"}
