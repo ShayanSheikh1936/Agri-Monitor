@@ -8,8 +8,6 @@ import { fdb } from "../features/auth/firebase"
 import { setDoc, doc, getDoc } from "firebase/firestore"
 import { useNavigate } from "react-router-dom"
 import imageCompression from "browser-image-compression";
-import ToggleSwitch from "../components/toogleswitch"
-import { set } from "firebase/database"
 export default function PersonalInfo() {
     const navigate = useNavigate()
     const { register, handleSubmit, formState: { errors }, setValue } = useForm();
@@ -29,7 +27,7 @@ export default function PersonalInfo() {
         setLoading(true);
         if (currentUser) {
             const docRef = doc(fdb, "users", currentUser.uid)
-            const setDocs = await setDoc(docRef, {
+            await setDoc(docRef, {
                 personaluser: {
                     Profession: data.profession || "",
                     PhoneNum: data.phonenum || "",
@@ -48,7 +46,12 @@ export default function PersonalInfo() {
             if (docsnap.exists()) {
                 const docData = docsnap.data();
                 try {
-                    const response = await fetch('https://lagoon-punk-capitol.ngrok-free.dev/webhook/test-webhook', {
+                    // Webhook endpoint is configured via env (ngrok dev URLs rotate).
+                    const webhookUrl = import.meta.env.VITE_WEBHOOK_URL;
+                    if (!webhookUrl) {
+                        console.log('No webhook URL configured — skipping notification send.');
+                    }
+                    const response = webhookUrl ? await fetch(webhookUrl, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
@@ -323,8 +326,8 @@ AI-powered agriculture intelligence for smarter farming.
 `
                         })
 
-                    });
-                    if (response.ok) {
+                    }) : null;
+                    if (response && response.ok) {
                         console.log('Data successfully sent!');
                     } else {
                         console.log('Error sending data.');
@@ -354,6 +357,10 @@ AI-powered agriculture intelligence for smarter farming.
                         // console.log(data.fullname);
                         setValue("EmailAddress", data.EmailAddress);
                         setValue("FullName", data.fullname);
+                        // Sync the notification toggle with the stored value so
+                        // changes made on the Weather Alerts page are reflected
+                        // here (same field: personaluser.notification).
+                        setIsOn(data?.personaluser?.notification === true);
                     }
                 } catch (error) {
                     console.error("Error fetching doc:", error);

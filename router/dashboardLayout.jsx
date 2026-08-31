@@ -47,12 +47,15 @@ export default function DashboardLayout() {
   }, [currentUser]);
 
   const handleLogout = async () => {
+    setshowmenu(false);
     try {
+      // Firebase signOut clears the persisted device session (localStorage)
       await signOut(auth);
       alert("Logged out successfully!");
       Navigate("/login");
     } catch (error) {
       console.error("Error logging out: ", error);
+      alert("Failed to sign out. Please try again.");
     }
   };
 

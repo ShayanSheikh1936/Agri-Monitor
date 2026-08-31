@@ -6,6 +6,7 @@ import background1 from "../assets/background1.png"
 import video1 from "../assets/video1.mp4"
 import { ChevronDown, Menu, X } from "lucide-react";
 import { Link, NavLink } from "react-router-dom";
+import { useAuth } from "../features/auth/authContext";
 
 // Shared hover handlers for the Services submenu (attached once on mount)
 function useServicesHover(ref) {
@@ -42,6 +43,8 @@ export default function Navbar() {
     const showMenu = useRef(null);
     const show = useServicesHover(showMenu);
     const [mobileOpen, setMobileOpen] = useState(false);
+    // Device session check: logged-in users see "Go to Dashboard" instead of "Sign Up"
+    const { currentUser } = useAuth();
 
     return (
         <>
@@ -56,7 +59,7 @@ export default function Navbar() {
                 </ul></div>
                 <div className="hidden md:block"><ul className="flex gap-4 min-w-max bg-[#F2DEC4] pl-5 pt-5 pb-5 pr-2 rounded-l-full items-center">
                     <Link to="/login" className={`${styles.login} login grid place-items-center`}><p>Login</p></Link>
-                    <Link to="/signup" className={`${styles.signUp} signUp grid place-items-center`}><p>Sign Up</p></Link>
+                    <Link to={currentUser ? "/dashboard" : "/signup"} className={`${styles.signUp} signUp grid place-items-center`}><p>{currentUser ? "Go to Dashboard" : "Sign Up"}</p></Link>
                 </ul></div>
                 {/* Mobile hamburger toggle */}
                 <button
@@ -77,7 +80,7 @@ export default function Navbar() {
                             <li className="px-3 py-2"><NavLink onClick={() => setMobileOpen(false)} className="block" to="/contact">Contact Us</NavLink></li>
                             <li className="flex gap-3 px-3 pt-2">
                                 <Link onClick={() => setMobileOpen(false)} to="/login" className="flex-1 text-center bg-[var(--text1)] text-white px-4 py-2 rounded-full">Login</Link>
-                                <Link onClick={() => setMobileOpen(false)} to="/signup" className="flex-1 text-center bg-green-700 text-white px-4 py-2 rounded-full">Sign Up</Link>
+                                <Link onClick={() => setMobileOpen(false)} to={currentUser ? "/dashboard" : "/signup"} className="flex-1 text-center bg-green-700 text-white px-4 py-2 rounded-full">{currentUser ? "Go to Dashboard" : "Sign Up"}</Link>
                             </li>
                         </ul>
                     </div>
@@ -91,6 +94,8 @@ export default function Navbar() {
 export function Navbar2() {
     const showMenu = useRef(null);
     const show = useServicesHover(showMenu);
+    // Device session check: logged-in users see "Go to Dashboard" instead of "Sign Up"
+    const { currentUser } = useAuth();
 
     return (
         <>
@@ -105,7 +110,7 @@ export function Navbar2() {
                 </ul></div>
                 <div><ul className="flex gap-4 bg-[#F2DEC4] pl-5 pt-5 pb-5 pr-2 rounded-l-full">
                     <li className={`${styles.login} login grid place-items-center`}><NavLink to="/login">Login</NavLink></li>
-                    <li className={`${styles.signUp} signUp grid place-items-center`}><NavLink to="/signup">Sign Up</NavLink></li>
+                    <li className={`${styles.signUp} signUp grid place-items-center`}><NavLink to={currentUser ? "/dashboard" : "/signup"}>{currentUser ? "Go to Dashboard" : "Sign Up"}</NavLink></li>
                 </ul></div>
             </nav>
             

@@ -45,5 +45,11 @@ service cloud.firestore {
     match /timelineData/{uid}/{document=**} {
       allow read, write: if isOwner(uid);
     }
+
+    // Weather alert records (Weather Alert page): rooted at the auth uid so
+    // user A can never read/modify user B's alerts — owner only.
+    match /weatherAlerts/{uid}/{document=**} {
+      allow read, write: if isOwner(uid);
+    }
   }
 }

@@ -1,266 +1,186 @@
-import { useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
-import { Plus, CalendarRange } from "lucide-react";
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useAuth } from "../features/auth/authContext";
-import { cropKey, getPlantAgeDays } from "@/lib/cropUtils";
-import useTimelineDashboard from "./timeline/useTimelineDashboard";
-import CropOverview from "./timeline/CropOverview";
-import CropStageCard from "./timeline/CropStageCard";
-import TodayTasks from "./timeline/TodayTasks";
-import TomorrowTasks from "./timeline/TomorrowTasks";
-import UpcomingTasks from "./timeline/UpcomingTasks";
-import TimelineEventList from "./timeline/TimelineEventList";
-import CropHealthCard from "./timeline/CropHealthCard";
-import IrrigationCard from "./timeline/IrrigationCard";
-import SoilCard from "./timeline/SoilCard";
-import WeatherCard from "./timeline/WeatherCard";
-import AIObservationCard from "./timeline/AIObservationCard";
-import AIRecommendationCard from "./timeline/AIRecommendationCard";
-import CropActivityCard from "./timeline/CropActivityCard";
+  Plus,
+  CalendarRange,
+  Sprout,
+  CloudSun,
+  AlertTriangle,
+  MessageCircle,
+  ChevronRight,
+} from "lucide-react";
+import { cropKey, formatDate, getPlantAgeDays } from "@/lib/cropUtils";
 
-// Connected Agri Dashboard — reads ONLY persisted data (crops/{uid} via the
-// outlet context + timelineData/{uid}/crops/{cropId} via useTimelineDashboard).
-// Never regenerates AI data; generation lives on the Crop Timeline page.
-const Dashboard = () => {
-  const { userData, userCropData } = useOutletContext();
-  const { currentUser } = useAuth();
-  const crops = userCropData?.crops ?? [];
-  const [selectedIndex, setSelectedIndex] = useState(0);
+// Redesigned dashboard home — an overview / "get to know your dashboard" page.
+// Left column: guide cards explaining how to best use each dashboard page and
+// the chatbot. Right column: the user's crop profiles with created-at dates.
+// All detailed data (tasks, weather, soil, AI cards...) lives on its own page,
+// so this page only reads the crops list from the outlet context.
 
-  const safeIndex =
-    crops.length > 0 ? Math.min(selectedIndex, crops.length - 1) : 0;
-  const crop = crops[safeIndex] ?? null;
-  const key = crop ? cropKey(crop, safeIndex) : null;
+const GUIDE_CARDS = [
+  {
+    to: "/dashboard/croptimeline",
+    icon: CalendarRange,
+    title: "Crop Timeline",
+    desc: "Generate your crop's personalized day-by-day plan — milestones, tasks, AI observations and recommendations all live here.",
+  },
+  {
+    to: "/dashboard/cropsuggestion",
+    icon: Sprout,
+    title: "Crop Suggestion",
+    desc: "Ask the AI what to plant next and get care suggestions matched to your field, season and crop condition.",
+  },
+  {
+    to: "/dashboard/weatherforecast",
+    icon: CloudSun,
+    title: "Weather Forecast",
+    desc: "Check hourly & daily forecasts with farming guidance before planning irrigation, spraying or harvest.",
+  },
+  {
+    to: "/dashboard/weatheralerts",
+    icon: AlertTriangle,
+    title: "Weather Alerts",
+    desc: "Stay ahead of heavy rain, heatwaves, frost and wind warnings that can affect your crops.",
+  },
+  {
+    to: null,
+    icon: MessageCircle,
+    title: "Agri Chatbot",
+    desc: "Tap the round chat button at the bottom-right corner on any dashboard page — ask about crop diseases, weather or care, and even attach a crop photo for AI analysis.",
+  },
+];
 
-  const dash = useTimelineDashboard(currentUser?.uid ?? null, crop, key);
+// One guide card — renders as a Link when `to` exists, plain card otherwise.
+function GuideCard({ to, icon: Icon, title, desc }) {
+  const inner = (
+    <>
+      <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[var(--text1)] text-[var(--text-h)]">
+        <Icon size={24} />
+      </span>
+      <span className="flex min-w-0 flex-col gap-0.5">
+        <span className="text-[16px] font-bold text-black">{title}</span>
+        <span className="text-[13px] leading-5 text-black/60">{desc}</span>
+      </span>
+      {to && <ChevronRight size={18} className="ml-auto shrink-0 text-[var(--text1)]" />}
+    </>
+  );
+  const cardClass =
+    "flex items-center gap-3 rounded-2xl border-2 border-[var(--text1)]/40 bg-[rgba(255,255,255,0.55)] p-3 transition-colors";
 
-  if (!crop) {
+  if (to) {
     return (
-      <div className="flex-6 flex justify-center items-center w-full h-screen overflow-y-auto flex-col gap-1">
-        <Link
-          to="/dashboard/addnewcrop"
-          className="capitalize bg-[#679936] rounded-2xl px-3 py-2 text-[var(--text-h)] transition-colors hover:bg-[#4a7028] flex items-center gap-2"
-        >
-          <Plus /> add crop
-        </Link>
-        <p className="text-[rgb(0,0,0,0.5)] capitalize text-[15px]">
-          Nothing to add Crops yet
-        </p>
-      </div>
+      <Link to={to} className={`${cardClass} hover:border-[var(--text1)] hover:bg-[#D7E8C0]/60`}>
+        {inner}
+      </Link>
     );
   }
+  return <div className={cardClass}>{inner}</div>;
+}
 
-  // Honest empty-state hint for the task lists, derived from stored meta.
-  const emptyHint =
-    dash.generationState === "ready"
-      ? undefined
-      : dash.generationState === "in_progress"
-        ? "Timeline generation in progress — tasks will appear here once it completes."
-        : "No personalized timeline yet. Open Crop Timeline and press Generate Timeline — tasks will then appear here.";
+// One crop profile row — name + created-at date + live plant age.
+function CropRow({ crop, index }) {
+  const ageDays = getPlantAgeDays(crop);
+  const created = formatDate(crop.createdAt);
 
   return (
-    <div className="flex-6 h-screen overflow-y-auto bg-[var(--bg)] p-4 scrollbar-thin scrollbar-track-[#F2DEC4] scrollbar-thumb-[#679936]">
+    <Link
+      to="/dashboard/croptimeline"
+      className="flex items-center gap-3 rounded-xl border-2 border-transparent bg-[#D7E8C0]/40 px-3 py-2.5 transition-colors hover:border-[var(--text1)] hover:bg-[#D7E8C0]"
+    >
+      <span className="h-11 w-11 shrink-0 overflow-hidden rounded-full border-2 border-[var(--text1)] bg-[var(--text1)]/20">
+        {crop.cropImage ? (
+          <img src={crop.cropImage} alt={crop.CropName || "Crop"} className="h-full w-full object-cover" />
+        ) : (
+          <span className="flex h-full w-full items-center justify-center text-sm font-bold text-[var(--text1)]">
+            {(crop.CropName || "C").charAt(0).toUpperCase()}
+          </span>
+        )}
+      </span>
+      <span className="flex min-w-0 flex-col leading-tight">
+        <span className="truncate text-[15px] font-bold text-[var(--text1)]">
+          {crop.CropName || `Crop ${index + 1}`}
+        </span>
+        <span className="text-[12px] text-black/60">
+          {created ? `Created ${created}` : "Created recently"}
+          {ageDays != null && <span> • Day {ageDays}</span>}
+        </span>
+      </span>
+      <ChevronRight size={18} className="ml-auto shrink-0 text-[var(--text1)]" />
+    </Link>
+  );
+}
+
+const Dashboard = () => {
+  const { userData, userCropData } = useOutletContext();
+  const crops = userCropData?.crops ?? [];
+  const firstName = (userData?.fullname || "Farmer").trim().split(" ")[0];
+
+  return (
+    <div className="flex-6 h-screen overflow-y-auto bg-[var(--bg)] p-4 md:p-6 scrollbar-thin scrollbar-track-[#F2DEC4] scrollbar-thumb-[#679936]">
       {/* Header */}
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-        <div className="flex items-center gap-3">
-          {userData?.displayphoto && (
-            <img
-              src={userData.displayphoto}
-              alt=""
-              className="w-10 h-10 rounded-full"
-            />
-          )}
-          <div>
-            <h1 className="bebas-neue-regular text-4xl leading-none text-[var(--text1)] [-webkit-text-stroke:0.4px_black]">
-              Agri Dashboard
-            </h1>
-            <p className="mt-1 text-[14px] text-black/60">
-              Welcome {userData?.fullname} — here's what your fields need.
-            </p>
-          </div>
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="bebas-neue-regular text-5xl leading-none text-[var(--text1)] [-webkit-text-stroke:0.4px_black]">
+            Hello, <span className="capitalize">{firstName}</span>
+          </h1>
+          <p className="mt-1 text-[15px] text-black/60">
+            Welcome back to Agri Monitor — here's how to get the most out of your dashboard.
+          </p>
         </div>
-        <Button asChild size="sm">
-          <Link to="/dashboard/addnewcrop">
-            <Plus size={16} /> Add New Crop
-          </Link>
-        </Button>
-      </div>
-
-      {/* Crop selector — real crops only */}
-      <div className="mb-4 flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-        {crops.map((c, index) => {
-          const active = index === safeIndex;
-          const ageDays = getPlantAgeDays(c);
-          return (
-            <button
-              key={cropKey(c, index)}
-              onClick={() => setSelectedIndex(index)}
-              className={`flex shrink-0 items-center gap-2 rounded-2xl border-2 px-2 py-1.5 transition-colors cursor-pointer ${
-                active
-                  ? "border-[var(--text1)] bg-[#D7E8C0]"
-                  : "border-transparent bg-[rgba(0,0,0,0.06)] hover:bg-[#D7E8C0]/50"
-              }`}
-            >
-              <span className="w-9 h-9 rounded-full overflow-hidden border border-[var(--text1)] bg-[#D7E8C0]">
-                {c.cropImage ? (
-                  <img
-                    src={c.cropImage}
-                    alt={c.CropName || "Crop"}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <span className="flex items-center justify-center w-full h-full text-sm font-bold text-[var(--text1)]">
-                    {(c.CropName || "C").charAt(0).toUpperCase()}
-                  </span>
-                )}
-              </span>
-              <span className="flex flex-col items-start leading-tight">
-                <span className="text-[14px] font-semibold text-black max-w-[140px] truncate">
-                  {c.CropName || `Crop ${index + 1}`}
-                </span>
-                <span className="text-[11px] text-black/50">
-                  {ageDays != null ? `Day ${ageDays}` : "Age unknown"}
-                </span>
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Generation status strip (failed / stalled / in progress / none) */}
-      {dash.generationState !== "ready" && (
-        <div
-          className={`mb-4 flex flex-wrap items-center gap-2 rounded-2xl border px-3 py-2 text-[13px] ${
-            dash.generationState === "failed" || dash.generationState === "stalled"
-              ? "border-red-300 bg-red-50 text-red-700"
-              : "border-[var(--text1)]/30 bg-[#D7E8C0]/40 text-black/70"
-          }`}
+        <Link
+          to="/dashboard/addnewcrop"
+          className="flex items-center gap-2 rounded-2xl bg-[#679936] px-3 py-2 text-[var(--text-h)] transition-colors hover:bg-[#4a7028]"
         >
-          {dash.generationState === "failed" || dash.generationState === "stalled"
-            ? `Last timeline generation did not complete${dash.meta?.lastGenerationError ? `: ${dash.meta.lastGenerationError}` : ""}.`
-            : dash.generationState === "in_progress"
-              ? "Personalized timeline generation is in progress…"
-              : "No personalized timeline for this crop yet."}
-          <Link
-            to="/dashboard/croptimeline"
-            className="font-semibold underline underline-offset-2"
-          >
-            {dash.generationState === "failed" || dash.generationState === "stalled"
-              ? "Retry from Crop Timeline"
-              : "Generate it from Crop Timeline"}
-          </Link>
-        </div>
-      )}
-
-      {/* Crop overview — real stored facts + persisted timeline meta */}
-      <CropOverview
-        crop={crop}
-        meta={dash.meta}
-        nextMilestone={dash.nextMilestone}
-      />
-
-      {/* Main grid */}
-      <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <div className="grid content-start gap-4 xl:col-span-2">
-          {/* Today / Tomorrow / Upcoming — persisted events only */}
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <TodayTasks
-              crop={crop}
-              events={dash.today}
-              loading={dash.loading}
-              emptyHint={emptyHint}
-            />
-            <TomorrowTasks
-              crop={crop}
-              events={dash.tomorrow}
-              loading={dash.loading}
-              emptyHint={emptyHint}
-            />
-            <UpcomingTasks
-              crop={crop}
-              events={dash.upcoming}
-              loading={dash.loading}
-              emptyHint={emptyHint}
-            />
-          </div>
-
-          {/* Reusable responsive timeline (chronological future window) */}
-          <Card>
-            <CardHeader className="pb-0">
-              <CardTitle className="flex items-center gap-2 text-[16px]">
-                <CalendarRange size={17} className="text-[var(--text1)]" />
-                Timeline
-                <Badge variant="secondary" className="ml-auto">
-                  {dash.loading ? "…" : `${dash.upcoming.length} upcoming`}
-                </Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {dash.loading ? (
-                <div className="grid gap-2">
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-4 w-2/3" />
-                  <Skeleton className="h-4 w-1/2" />
-                </div>
-              ) : dash.upcoming.length > 0 ? (
-                <TimelineEventList events={dash.upcoming} />
-              ) : (
-                <p className="rounded-xl bg-[#D7E8C0]/40 px-3 py-3 text-[13px] leading-5 text-black/65">
-                  {emptyHint ?? "No upcoming events stored for this crop."}
-                </p>
-              )}
-              <div className="mt-3">
-                <Button asChild variant="outline" size="sm">
-                  <Link to="/dashboard/croptimeline">
-                    View full timeline
-                  </Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Side column */}
-        <div className="grid content-start gap-4">
-          <CropStageCard crop={crop} meta={dash.meta} />
-          <WeatherCard
-            crop={crop}
-            weather={dash.weather}
-            weatherError={dash.weatherError}
-            loading={dash.loading}
-          />
-          <CropHealthCard crop={crop} />
-          <IrrigationCard crop={crop} />
-          <SoilCard crop={crop} />
-        </div>
+          <Plus size={18} /> Add New Crop
+        </Link>
       </div>
 
-      {/* Bottom row */}
-      <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-        <AIObservationCard
-          crop={crop}
-          observations={dash.observations}
-          loading={dash.loading}
-        />
-        <AIRecommendationCard
-          crop={crop}
-          analyses={dash.analyses}
-          loading={dash.loading}
-        />
-        <CropActivityCard
-          crop={crop}
-          activities={dash.activities}
-          loading={dash.loading}
-        />
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        {/* Left column — guide cards (like the reference layout) */}
+        <div className="flex flex-col gap-6">
+          <section>
+            <p className="mb-2 font-semibold text-black/70">Get started</p>
+            <GuideCard
+              to="/dashboard/addnewcrop"
+              icon={Plus}
+              title="Create a new crop profile"
+              desc="Register your crop with its sowing date to unlock personalized timelines, tasks and AI insights across the dashboard."
+            />
+          </section>
+
+          <section>
+            <p className="mb-2 font-semibold text-black/70">Explore your dashboard</p>
+            <div className="grid gap-3">
+              {GUIDE_CARDS.map((card) => (
+                <GuideCard key={card.title} {...card} />
+              ))}
+            </div>
+          </section>
+        </div>
+
+        {/* Right column — user crop profiles */}
+        <div>
+          <p className="mb-2 font-semibold text-black/70">Your crops</p>
+          <div className="flex flex-col gap-2 rounded-2xl border-2 border-[var(--text1)]/50 bg-[rgba(255,255,255,0.55)] p-3">
+            {crops.length > 0 ? (
+              crops.map((crop, index) => <CropRow key={cropKey(crop, index)} crop={crop} index={index} />)
+            ) : (
+              <div className="flex flex-col items-center gap-2 py-8">
+                <Link
+                  to="/dashboard/addnewcrop"
+                  className="flex items-center gap-2 rounded-2xl bg-[#679936] px-3 py-2 capitalize text-[var(--text-h)] transition-colors hover:bg-[#4a7028]"
+                >
+                  <Plus size={18} /> add crop
+                </Link>
+                <p className="text-[14px] capitalize text-black/50">No crops added yet</p>
+              </div>
+            )}
+            {crops.length > 0 && (
+              <p className="mt-1 text-right text-[12px] text-black/50">
+                1–{crops.length} of {crops.length}
+              </p>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

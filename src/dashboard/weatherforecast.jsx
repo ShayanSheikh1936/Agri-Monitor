@@ -105,7 +105,7 @@ export default function WeatherForecastPage() {
     : null;
 
   return (
-    <div className="flex-6 h-screen overflow-y-auto overflow-x-hidden p-3 sm:p-4">
+    <div className="scrollbar-thin scrollbar-thumb-[#679936] scrollbar-track-[#F2DEC4] flex-6 h-screen overflow-y-auto overflow-x-hidden p-3 sm:p-4">
       <div className="w-full max-w-[1280px] mx-auto grid gap-3 content-start min-w-0">
       {/* 1. Header: crop selector, location, current conditions, refresh */}
       <Card className="min-w-0">

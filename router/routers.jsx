@@ -20,6 +20,7 @@ import { lazy, Suspense } from "react";
 // Lazy-loaded so the Crop Timeline page is code-split out of the initial bundle
 const CropTimelinePage = lazy(() => import("../src/dashboard/croptimeline"));
 const WeatherForecastPage = lazy(() => import("../src/dashboard/weatherforecast"));
+const WeatherAlertsPage = lazy(() => import("../src/dashboard/weatheralerts"));
 
 // Shared lazy-route fallback spinner (matches the dashboard theme).
 const PageFallback = (
@@ -112,7 +113,11 @@ export default function Routers() {
                         },
                         {
                             path: "/dashboard/weatheralerts",
-                            element: <h1 className="text-2xl flex-6">weather alerts</h1>,
+                            element: (
+                                <Suspense fallback={PageFallback}>
+                                    <WeatherAlertsPage />
+                                </Suspense>
+                            ),
                         },
                         {
                             path: "/dashboard/weatherwarnings",
