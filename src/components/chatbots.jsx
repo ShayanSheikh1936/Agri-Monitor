@@ -12,7 +12,49 @@ import {
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useState, useRef, useEffect } from "react";
+import imageCompression from "browser-image-compression";
 import styles from "./chatbots.module.css";
+
+// Max send attempts — transient network drops ("Failed to fetch") are retried
+// instead of failing the whole conversation on the first glitch.
+const MAX_ATTEMPTS = 3;
+
+// Compress before upload — raw photos (often 5–10 MB, ~13 MB as base64)
+// exceed serverless body limits and drop mid-upload. A 1280px JPEG keeps
+// plenty of detail for crop-disease vision analysis. Same library already
+// used by personalinfo.jsx.
+async function compressImage(file) {
+  try {
+    return await imageCompression(file, {
+      maxSizeMB: 0.8,
+      maxWidthOrHeight: 1280,
+      useWebWorker: true,
+      initialQuality: 0.8,
+    });
+  } catch {
+    return file; // compression failed — fall back to the original file
+  }
+}
+
+// fetch() with a hard timeout so a hung request can never freeze the chat.
+function fetchWithTimeout(url, options, timeoutMs) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { ...options, signal: controller.signal }).finally(() =>
+    clearTimeout(timer)
+  );
+}
+
+// Human-readable chat error instead of raw browser messages.
+function friendlyErrorMessage(err) {
+  if (err?.name === "AbortError") {
+    return "The AI server took too long to respond (request timed out). Please try again — smaller images work best.";
+  }
+  if (err instanceof TypeError) {
+    return "Could not reach the AI server (network error). Please check your connection and try again.";
+  }
+  return err?.message || "Unable to connect to the server.";
+}
 
 export default function Chatbot({ userinfo }) {
   const [show, setshow] = useState(false);
@@ -208,14 +250,19 @@ export default function Chatbot({ userinfo }) {
 
     setLoading(true);
 
+    // Image analysis takes much longer on the server than plain text —
+    // give it a bigger timeout window.
+    const timeoutMs = currentImage ? 90_000 : 45_000;
+
     try {
       // ------------------------------------
-      // Convert image to Base64
+      // Compress image, then convert to Base64
       // ------------------------------------
       let imageBase64 = null;
 
       if (currentImage) {
-        imageBase64 = await fileToBase64(currentImage);
+        const compressed = await compressImage(currentImage);
+        imageBase64 = await fileToBase64(compressed);
       }
 
       // ------------------------------------
@@ -229,76 +276,94 @@ export default function Chatbot({ userinfo }) {
         );
       }
 
-      // console.log("API URL:", apiUrl);
+      // Build location safely — never send "undefined undefined"
+      const locationParts = [
+        userinfo?.personaluser?.City,
+        userinfo?.personaluser?.Country,
+      ].filter(Boolean);
 
       // ------------------------------------
-      // Send JSON to Netlify Function
+      // Send JSON to Netlify Function (timeout + retry on network glitches)
       // ------------------------------------
-      const res = await fetch(apiUrl, {
-        method: "POST",
-
-        headers: {
-          "Content-Type": "application/json",
-        },
-
-        body: JSON.stringify({
-          prompt: userText,
-          lang: langValue,
-          image: imageBase64,
-          location: userinfo?.personaluser?.City+" "+userinfo?.personaluser?.Country 
-        }),
+      const requestBody = JSON.stringify({
+        prompt: userText,
+        lang: langValue,
+        image: imageBase64,
+        location: locationParts.join(" ") || null,
       });
 
-      // ------------------------------------
-      // Read response safely
-      // ------------------------------------
-      const responseText = await res.text();
+      let lastError = null;
 
-      // console.log("API status:", res.status);
-      // console.log("API response:", responseText);
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        try {
+          const res = await fetchWithTimeout(
+            apiUrl,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: requestBody,
+            },
+            timeoutMs
+          );
 
-      let data;
+          // ------------------------------------
+          // Read response safely
+          // ------------------------------------
+          const responseText = await res.text();
 
-      try {
-        data = JSON.parse(responseText);
-      } catch (jsonError) {
-        throw new Error(
-          "Server returned invalid JSON: " +
-          responseText.substring(0, 300)
-        );
+          let data;
+
+          try {
+            data = JSON.parse(responseText);
+          } catch {
+            throw new Error(
+              "Server returned invalid JSON: " +
+                responseText.substring(0, 300)
+            );
+          }
+
+          // ------------------------------------
+          // API error — no point retrying these
+          // ------------------------------------
+          if (!res.ok) {
+            throw new Error(data.error || "Something went wrong.");
+          }
+
+          // ------------------------------------
+          // AI response
+          // ------------------------------------
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: "ai",
+              text: data.reply || "No response received from AI.",
+            },
+          ]);
+          lastError = null;
+          break;
+        } catch (err) {
+          lastError = err;
+
+          // Only network-level failures (TypeError: Failed to fetch) and
+          // timeouts are worth retrying — server rejections are not.
+          const transient =
+            err?.name === "AbortError" || err instanceof TypeError;
+
+          if (!transient || attempt === MAX_ATTEMPTS) break;
+
+          await new Promise((r) => setTimeout(r, 700 * attempt));
+        }
       }
 
-      // ------------------------------------
-      // API error
-      // ------------------------------------
-      if (!res.ok) {
-        throw new Error(
-          data.error || "Something went wrong."
-        );
-      }
-
-      // ------------------------------------
-      // AI response
-      // ------------------------------------
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "ai",
-          text:
-            data.reply ||
-            "No response received from AI.",
-        },
-      ]);
+      if (lastError) throw lastError;
     } catch (err) {
-      // console.error("Chat error:", err);
-
       setMessages((prev) => [
         ...prev,
         {
           role: "ai",
-          text:
-            err.message ||
-            "Unable to connect to the server.",
+          text: friendlyErrorMessage(err),
         },
       ]);
     } finally {

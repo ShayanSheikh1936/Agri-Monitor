@@ -23,6 +23,7 @@ const CropProgressPage = lazy(() => import("../src/dashboard/cropprogress"));
 const CropSuggestionPage = lazy(() => import("../src/dashboard/cropsuggestion"));
 const WeatherForecastPage = lazy(() => import("../src/dashboard/weatherforecast"));
 const WeatherAlertsPage = lazy(() => import("../src/dashboard/weatheralerts"));
+const DisasterAlertsPage = lazy(() => import("../src/dashboard/disasteralerts"));
 
 // Shared lazy-route fallback spinner (matches the dashboard theme).
 const PageFallback = (
@@ -137,7 +138,11 @@ export default function Routers() {
                             element: <h1 className="text-2xl flex-6">marketplace</h1>,
                         },{
                             path: "/dashboard/disasteralerts",
-                            element: <h1 className="text-2xl flex-6">disaster alerts</h1>,
+                            element: (
+                                <Suspense fallback={PageFallback}>
+                                    <DisasterAlertsPage />
+                                </Suspense>
+                            ),
                         },{
                             path: "/dashboard/croptimeline",
                             element: (
