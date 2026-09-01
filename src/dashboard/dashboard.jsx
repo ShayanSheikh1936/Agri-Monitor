@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   MessageCircle,
   ChevronRight,
+  Lightbulb,
 } from "lucide-react";
 import { cropKey, formatDate, getPlantAgeDays } from "@/lib/cropUtils";
 
@@ -18,16 +19,22 @@ import { cropKey, formatDate, getPlantAgeDays } from "@/lib/cropUtils";
 
 const GUIDE_CARDS = [
   {
-    to: "/dashboard/croptimeline",
-    icon: CalendarRange,
-    title: "Crop Timeline",
-    desc: "Generate your crop's personalized day-by-day plan — milestones, tasks, AI observations and recommendations all live here.",
+    to: "/dashboard/cropprogress",
+    icon: Sprout,
+    title: "Daily Crop Progress",
+    desc: "See today's tasks, mark them done, log field activities and record your crop's daily condition — your day-to-day execution hub.",
   },
   {
     to: "/dashboard/cropsuggestion",
-    icon: Sprout,
+    icon: Lightbulb,
     title: "Crop Suggestion",
-    desc: "Ask the AI what to plant next and get care suggestions matched to your field, season and crop condition.",
+    desc: "Get AI recommendations for irrigation, nutrition, pest & disease monitoring and next actions, matched to your crop's real recorded data.",
+  },
+  {
+    to: "/dashboard/croptimeline",
+    icon: CalendarRange,
+    title: "Crop Timeline",
+    desc: "Generate your crop's personalized lifecycle plan — growth stages, milestones, estimated harvest and AI plan reviews all live here.",
   },
   {
     to: "/dashboard/weatherforecast",

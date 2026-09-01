@@ -507,7 +507,7 @@ async function fail(context, code, message) {
  * by its unique createdAt timestamp + name.
  */
 export async function generateTimelineForNewCrop(uid, cropEntry) {
-  let index = -1;
+  let index;
   try {
     const snap = await getDoc(doc(fdb, "crops", uid));
     const crops = snap.exists() ? (snap.data()?.crops ?? []) : [];
@@ -1096,8 +1096,8 @@ export async function reviewCropTimeline(uid, cropId, options = {}) {
   }
 
   // ---- Upcoming events (update candidates) + completed context ----
-  let upcoming = [];
-  let recentCompleted = [];
+  let upcoming;
+  let recentCompleted;
   try {
     ({ upcoming, recentCompleted } = await timelineService.getEventsForReview(uid, cropId));
   } catch (err) {
@@ -1183,6 +1183,445 @@ export async function reviewCropTimeline(uid, cropId, options = {}) {
       error: {
         code: GENERATION_ERROR_CODES.SAVE_FAILED,
         message: err.message ?? "The review could not be saved.",
+      },
+    };
+  }
+}
+
+// =============================================================================
+// Daily AI summary (Daily Crop Progress page) — a concise, facts-only recap
+// built from the crop's REAL data. Same existing AI backend via
+// callAIBackend; plain-text response (no JSON). Never throws.
+// =============================================================================
+
+export function buildDailySummaryPrompt(
+  context,
+  { todayEvents = [], observations = [], currentStage = null } = {}
+) {
+  const p = context.profile;
+  const provided = (v) =>
+    v === null || v === undefined || v === "" ? "not provided" : String(v);
+
+  const lines = [
+    "You are an expert agronomist for the Agri Monitor farm dashboard.",
+    "Write a concise DAILY FIELD SUMMARY for this farmer and crop.",
+    "Respond with PLAIN TEXT only: no markdown, no headings, no bullet symbols.",
+    "",
+    "CROP PROFILE:",
+    `- Crop name: ${provided(p.name)}`,
+    `- Sowing date: ${context.hasSowingDate ? context.sowingDateISO : "not provided"}`,
+    `- Plant age today: ${context.plantAgeDays != null ? `${context.plantAgeDays} days` : "unknown"}`,
+    `- Current stage: ${provided(currentStage)}`,
+    `- Reported condition: ${provided(p.currentCondition)}`,
+  ];
+
+  if (todayEvents.length) {
+    lines.push("", "TODAY'S TIMELINE EVENTS:");
+    for (const e of todayEvents) {
+      lines.push(
+        `- ${e.title} | status=${e.status} | priority=${e.priority}${e.description ? ` | ${e.description}` : ""}`
+      );
+    }
+  } else {
+    lines.push("", "TODAY'S TIMELINE EVENTS: none scheduled.");
+  }
+
+  if (context.recentActivities?.length) {
+    lines.push("", "RECENT FIELD ACTIVITIES (user-logged, newest first):");
+    for (const a of context.recentActivities) {
+      const qty = a.quantity ? ` ${a.quantity}${a.unit ? " " + a.unit : ""}` : "";
+      const note = a.notes ? ` — ${a.notes}` : "";
+      lines.push(`- ${a.date ?? "undated"}: ${a.type}${qty}${note}`);
+    }
+  }
+
+  if (observations.length) {
+    lines.push("", "RECENT OBSERVATIONS:");
+    for (const o of observations.slice(0, 5)) {
+      lines.push(`- ${o.title ?? o.category ?? "observation"}${o.message ? `: ${o.message}` : ""}`);
+    }
+  }
+
+  if (context.weather?.ok) {
+    lines.push("", "WEATHER OUTLOOK (informational only):");
+    const c = context.weather.current;
+    lines.push(`- Now: ${c.condition}, ${c.temperatureC}°C, humidity ${c.humidityPercent}%`);
+    for (const d of context.weather.nextDays) {
+      lines.push(`- ${d.date}: ${d.condition}, ${d.tempMinC}–${d.tempMaxC}°C, rain ${d.precipitationSumMm ?? 0}mm`);
+    }
+  }
+
+  lines.push(
+    "",
+    "RULES:",
+    "1. At most 120 words, in three short parts starting exactly with \"Today:\", \"Do next:\" and \"Watch for:\".",
+    "2. Use ONLY the facts provided above — never invent missing data. If something is unknown, simply leave it out.",
+    "3. Use uncertainty language (likely, possible, appears) — never unsupported certainty.",
+    "4. Never prescribe exact chemical product names or dosages."
+  );
+
+  return lines.join("\n");
+}
+
+/**
+ * On-demand daily summary. NEVER throws — returns { ok, summary } or
+ * { ok: false, error }. Never runs automatically on render.
+ */
+export async function generateDailySummary(uid, cropId, options = {}) {
+  const {
+    todayEvents = [],
+    observations = [],
+    currentStage = null,
+    timeoutMs = DEFAULT_TIMEOUT_MS,
+  } = options;
+
+  if (!uid || !cropId) {
+    return {
+      ok: false,
+      error: {
+        code: GENERATION_ERROR_CODES.MISSING_CONTEXT,
+        message: "An authenticated user and crop are required.",
+      },
+    };
+  }
+
+  let context;
+  try {
+    context = await buildCropAIContext(cropId, { uid });
+  } catch (err) {
+    return {
+      ok: false,
+      error: {
+        code: GENERATION_ERROR_CODES.MISSING_CONTEXT,
+        message: err.message ?? "Crop context could not be built.",
+      },
+    };
+  }
+
+  let reply;
+  try {
+    const apiUrl = resolveApiUrl(options);
+    if (!apiUrl) {
+      throw new TimelineGenerationError(
+        GENERATION_ERROR_CODES.MISSING_API_URL,
+        "VITE_API_URL is missing. Check your .env.local file."
+      );
+    }
+    const prompt = buildDailySummaryPrompt(context, {
+      todayEvents,
+      observations,
+      currentStage,
+    });
+    reply = await callAIBackend(apiUrl, prompt, {
+      location: context.locationString,
+      timeoutMs,
+    });
+  } catch (err) {
+    return {
+      ok: false,
+      error: {
+        code: err.code ?? GENERATION_ERROR_CODES.AI_REQUEST_FAILED,
+        message: err.message ?? "Daily summary generation failed.",
+      },
+    };
+  }
+
+  // Plain-text reply — strip any stray code fences and bound the length.
+  const summary =
+    typeof reply === "string"
+      ? reply
+          .trim()
+          .replace(/```[\s\S]*?```/g, "")
+          .replace(/```/g, "")
+          .trim()
+          .slice(0, 1500)
+      : "";
+
+  if (!summary) {
+    return {
+      ok: false,
+      error: {
+        code: GENERATION_ERROR_CODES.INVALID_RESPONSE,
+        message: "The AI returned an empty summary.",
+      },
+    };
+  }
+  return { ok: true, summary };
+}
+
+// =============================================================================
+// Crop recommendations (Crop Suggestion page) — "what should I do next for
+// this crop?" Same existing AI backend; strict JSON validated like the
+// timeline flows. Persisted via timelineService.saveAIRecommendation into the
+// SAME analyses subcollection (kind="recommendation") — no new collection.
+// =============================================================================
+
+export const RECOMMENDATION_CATEGORIES = [
+  "irrigation",
+  "soil_nutrition",
+  "crop_care",
+  "pest_monitoring",
+  "disease_monitoring",
+  "weather_actions",
+  "stage_actions",
+  "harvest_preparation",
+  "farm_management",
+];
+
+const RECOMMENDATION_COOLDOWN_MS = 10 * 60 * 1000;
+const MAX_RECOMMENDATIONS = 10;
+
+export function buildRecommendationsPrompt(
+  context,
+  { currentStage = null, observations = [] } = {}
+) {
+  const p = context.profile;
+  const provided = (v) =>
+    v === null || v === undefined || v === "" ? "not provided" : String(v);
+
+  const lines = [
+    "You are an expert agronomist for the Agri Monitor farm dashboard.",
+    "Advise the farmer on what to DO NEXT for this crop. Respond with STRICT JSON only: no markdown, no code fences, no commentary.",
+    "",
+    "CROP PROFILE:",
+    `- Crop name: ${provided(p.name)}`,
+    `- Category: ${provided(p.category)}`,
+    `- Variety / seed type: ${provided(p.varietySeedType)}`,
+    `- Sowing date: ${context.hasSowingDate ? context.sowingDateISO : "not provided"}`,
+    `- Plant age today: ${context.plantAgeDays != null ? `${context.plantAgeDays} days` : "unknown"}`,
+    `- Current stage: ${provided(currentStage)}`,
+    `- Soil type: ${provided(p.soil)}`,
+    `- Irrigation system: ${provided(p.irrigation)}`,
+    `- Reported condition: ${provided(p.currentCondition)}`,
+  ];
+
+  if (context.affectedPart) {
+    lines.push(`- Currently affected part: ${context.affectedPart}`);
+  }
+
+  if (context.recentActivities?.length) {
+    lines.push("", "RECENT FIELD ACTIVITIES (user-logged, newest first):");
+    for (const a of context.recentActivities) {
+      const qty = a.quantity ? ` ${a.quantity}${a.unit ? " " + a.unit : ""}` : "";
+      const note = a.notes ? ` — ${a.notes}` : "";
+      lines.push(`- ${a.date ?? "undated"}: ${a.type}${qty}${note}`);
+    }
+  }
+
+  if (observations.length) {
+    lines.push("", "RECENT OBSERVATIONS:");
+    for (const o of observations.slice(0, 5)) {
+      lines.push(`- ${o.title ?? o.category ?? "observation"}${o.message ? `: ${o.message}` : ""}`);
+    }
+  }
+
+  if (context.weather?.ok) {
+    lines.push("", "WEATHER OUTLOOK (informational only):");
+    const c = context.weather.current;
+    lines.push(`- Now: ${c.condition}, ${c.temperatureC}°C, humidity ${c.humidityPercent}%`);
+    for (const d of context.weather.nextDays) {
+      lines.push(`- ${d.date}: ${d.condition}, ${d.tempMinC}–${d.tempMaxC}°C, rain ${d.precipitationSumMm ?? 0}mm`);
+    }
+    if (context.weather.significantRainDays?.length) {
+      lines.push(`- Significant rainfall expected on: ${context.weather.significantRainDays.join(", ")}`);
+    }
+  }
+
+  lines.push(
+    "",
+    "RULES:",
+    `1. category must be exactly one of: ${RECOMMENDATION_CATEGORIES.join(", ")}. Only include categories with genuinely relevant advice — omit a category instead of padding with generic filler.`,
+    '2. priority must be exactly "low", "medium" or "high".',
+    '3. Use uncertainty language ("consider", "review", "monitor", "may", "possible") — never unsupported certainty.',
+    "4. Never invent facts that are not provided above; the reason must cite ONLY provided data.",
+    "5. SAFETY: never prescribe exact chemical product names or dosages.",
+    "6. At most 10 recommendations total. Titles under 60 characters; recommendation and reason under 200 characters each.",
+    "7. timing is a short practical window (e.g. \"today\", \"within 2 days\", \"this week\") or null when unknown.",
+    "",
+    "Return exactly this JSON object shape:",
+    '{"summary":"one or two sentences overall","recommendations":[{"category":"irrigation","title":"short title","recommendation":"what to consider doing","reason":"why, citing provided data","priority":"low|medium|high","stage":"relevant growth stage or null","timing":"short window or null"}]}'
+  );
+
+  return lines.join("\n");
+}
+
+/**
+ * Validates and normalizes a parsed AI recommendations response.
+ * Throws TimelineGenerationError when unusable.
+ */
+export function validateRecommendationsResponse(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new TimelineGenerationError(
+      GENERATION_ERROR_CODES.INVALID_RESPONSE,
+      "AI recommendations response is not a JSON object."
+    );
+  }
+
+  const warnings = [];
+  const strOrNull = (v, cap = 300) =>
+    typeof v === "string" && v.trim() ? v.trim().slice(0, cap) : null;
+
+  const items = [];
+  for (const r of (Array.isArray(raw.recommendations) ? raw.recommendations : []).slice(0, MAX_RECOMMENDATIONS * 2)) {
+    if (!r || typeof r !== "object") {
+      warnings.push("Skipped a non-object recommendation.");
+      continue;
+    }
+    const title = typeof r.title === "string" ? r.title.trim().slice(0, 80) : "";
+    const recommendation = strOrNull(r.recommendation, 300);
+    if (!title || !recommendation) {
+      warnings.push("Skipped a recommendation without title or text.");
+      continue;
+    }
+    const categoryRaw =
+      typeof r.category === "string"
+        ? r.category.toLowerCase().trim().replace(/[\s-]+/g, "_")
+        : "";
+    const category = RECOMMENDATION_CATEGORIES.includes(categoryRaw)
+      ? categoryRaw
+      : "farm_management";
+    if (!RECOMMENDATION_CATEGORIES.includes(categoryRaw)) {
+      warnings.push(`Unknown category "${r.category}" mapped to farm_management.`);
+    }
+    const priority = PRIORITY_MAP[
+      typeof r.priority === "string" ? r.priority.toLowerCase().trim() : ""
+    ] ?? "medium";
+
+    items.push({
+      category,
+      title,
+      recommendation,
+      reason: strOrNull(r.reason, 300),
+      priority,
+      stage: strOrNull(r.stage, 80),
+      timing: strOrNull(r.timing, 60),
+      aiGenerated: true,
+    });
+    if (items.length >= MAX_RECOMMENDATIONS) break;
+  }
+
+  if (items.length === 0) {
+    throw new TimelineGenerationError(
+      GENERATION_ERROR_CODES.INVALID_RESPONSE,
+      "AI returned no usable recommendations."
+    );
+  }
+
+  const summary = strOrNull(raw.summary, 400) ?? null;
+  return { summary, items, warnings };
+}
+
+/**
+ * Generates and persists a fresh recommendation batch for one crop.
+ * Cooldown-protected (10 min unless force) so AI is only called when
+ * meaningful data changes — never per render. NEVER throws.
+ */
+export async function generateCropRecommendations(uid, cropId, options = {}) {
+  const {
+    timeoutMs = DEFAULT_TIMEOUT_MS,
+    force = false,
+    currentStage = null,
+    observations = [],
+  } = options;
+
+  if (!uid || !cropId) {
+    return {
+      ok: false,
+      error: {
+        code: GENERATION_ERROR_CODES.MISSING_CONTEXT,
+        message: "An authenticated user and crop are required.",
+      },
+    };
+  }
+
+  // Cooldown lives on the existing timeline meta doc (when one exists).
+  let meta = null;
+  try {
+    meta = await timelineService.getTimeline(uid, cropId);
+  } catch {
+    /* meta stays null — cooldown simply won't apply */
+  }
+  const lastMs = toEpochMs(meta?.lastRecommendationAt);
+  if (!force && lastMs && Date.now() - lastMs < RECOMMENDATION_COOLDOWN_MS) {
+    return {
+      ok: false,
+      error: {
+        code: GENERATION_ERROR_CODES.REVIEW_COOLDOWN,
+        message:
+          "Recommendations were refreshed recently — try again in a few minutes.",
+      },
+    };
+  }
+
+  let context;
+  try {
+    context = await buildCropAIContext(cropId, { uid });
+  } catch (err) {
+    return {
+      ok: false,
+      error: {
+        code: GENERATION_ERROR_CODES.MISSING_CONTEXT,
+        message: err.message ?? "Crop context could not be built.",
+      },
+    };
+  }
+
+  let validated;
+  try {
+    const apiUrl = resolveApiUrl(options);
+    if (!apiUrl) {
+      throw new TimelineGenerationError(
+        GENERATION_ERROR_CODES.MISSING_API_URL,
+        "VITE_API_URL is missing. Check your .env.local file."
+      );
+    }
+    const prompt = buildRecommendationsPrompt(context, {
+      currentStage,
+      observations,
+    });
+    const reply = await callAIBackend(apiUrl, prompt, {
+      location: context.locationString,
+      timeoutMs,
+    });
+    const raw = extractJsonFromReply(reply);
+    validated = validateRecommendationsResponse(raw);
+  } catch (err) {
+    return {
+      ok: false,
+      error: {
+        code: err.code ?? GENERATION_ERROR_CODES.AI_REQUEST_FAILED,
+        message: err.message ?? "Recommendation generation failed.",
+      },
+    };
+  }
+
+  try {
+    const saved = await timelineService.saveAIRecommendation(uid, cropId, {
+      summary: validated.summary,
+      items: validated.items,
+    });
+    if (meta) {
+      try {
+        await timelineService.updateTimelineMeta(uid, cropId, {
+          lastRecommendationAt: new Date().toISOString(),
+        });
+      } catch {
+        /* cooldown stamp is best effort */
+      }
+    }
+    return {
+      ok: true,
+      id: saved.id,
+      summary: validated.summary,
+      items: validated.items,
+      warnings: validated.warnings,
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      error: {
+        code: GENERATION_ERROR_CODES.SAVE_FAILED,
+        message: err.message ?? "The recommendations could not be saved.",
       },
     };
   }

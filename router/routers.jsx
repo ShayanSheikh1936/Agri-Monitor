@@ -19,6 +19,8 @@ import { lazy, Suspense } from "react";
 
 // Lazy-loaded so the Crop Timeline page is code-split out of the initial bundle
 const CropTimelinePage = lazy(() => import("../src/dashboard/croptimeline"));
+const CropProgressPage = lazy(() => import("../src/dashboard/cropprogress"));
+const CropSuggestionPage = lazy(() => import("../src/dashboard/cropsuggestion"));
 const WeatherForecastPage = lazy(() => import("../src/dashboard/weatherforecast"));
 const WeatherAlertsPage = lazy(() => import("../src/dashboard/weatheralerts"));
 
@@ -97,11 +99,19 @@ export default function Routers() {
                         },
                         {
                             path: "/dashboard/cropprogress",
-                            element: <h1 className="text-2xl flex-6">crop progress</h1>,
+                            element: (
+                                <Suspense fallback={PageFallback}>
+                                    <CropProgressPage />
+                                </Suspense>
+                            ),
                         },
                         {
                             path: "/dashboard/cropsuggestion",
-                            element: <h1 className="text-2xl flex-6">crop suggestion</h1>,
+                            element: (
+                                <Suspense fallback={PageFallback}>
+                                    <CropSuggestionPage />
+                                </Suspense>
+                            ),
                         },
                         {
                             path: "/dashboard/weatherforecast",

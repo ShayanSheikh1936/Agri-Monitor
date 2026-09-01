@@ -949,6 +949,60 @@ export async function getRecentAnalyses(uid, cropId, count = 3) {
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
+/**
+ * Cursor-paginated read of the unified analyses/recommendations history
+ * (Crop Suggestion page). Returns { analyses, nextCursor } — nextCursor is
+ * null when the history is exhausted. Same collection, no new data.
+ */
+export async function getAnalysesPage(uid, cropId, { count = 5, cursor = null } = {}) {
+  assertUid(uid);
+  assertCropId(cropId);
+  const constraints = [orderBy("createdAt", "desc"), limit(count)];
+  if (cursor) constraints.push(startAfter(cursor));
+  const snap = await getDocs(
+    query(analysesCollectionRef(uid, cropId), ...constraints)
+  );
+  return {
+    analyses: snap.docs.map((d) => ({ id: d.id, ...d.data() })),
+    nextCursor:
+      snap.docs.length === count ? snap.docs[snap.docs.length - 1] : null,
+  };
+}
+
+/**
+ * Persists one AI recommendation batch in the SAME analyses subcollection
+ * (kind = "recommendation") — one unified recommendation history, no new
+ * collection. Keeps the findings/recommendations text fields so existing
+ * readers render it unchanged; structured items live in `items`.
+ */
+export async function saveAIRecommendation(uid, cropId, recommendation) {
+  assertUid(uid);
+  assertCropId(cropId);
+
+  const items = Array.isArray(recommendation.items)
+    ? recommendation.items.slice(0, 30).map((r) => stripUndefined({ ...r }))
+    : [];
+
+  const data = stripUndefined({
+    cropId,
+    date: recommendation.date ?? toDateString(),
+    kind: "recommendation",
+    status: recommendation.status ?? "active",
+    summary: recommendation.summary ?? "",
+    findings: recommendation.summary ?? "",
+    recommendations: items
+      .map((r) => r.title)
+      .filter(Boolean)
+      .join("; ")
+      .slice(0, 500),
+    items,
+    source: TIMELINE_SOURCE.AI,
+    createdAt: serverTimestamp(),
+  });
+  const ref = await addDoc(analysesCollectionRef(uid, cropId), data);
+  return { id: ref.id, ...data };
+}
+
 // -----------------------------------------------------------------------------
 // Timeline images — NEW timeline-specific uploads only.
 // Existing crop photos already live on the crop entry and are reused

@@ -10,6 +10,7 @@ import TimelineEventList from "./TimelineEventList";
 
 // Shared card shell for Today / Tomorrow / Upcoming task lists.
 // Purely presentational — the page supplies bounded, persisted events.
+// renderActions(event) is passed through for pages with actionable tasks.
 export default function TaskListCard({
   title,
   icon: Icon,
@@ -17,6 +18,7 @@ export default function TaskListCard({
   loading = false,
   emptyText,
   countLabel,
+  renderActions = null,
 }) {
   return (
     <Card className="gap-3">
@@ -37,7 +39,7 @@ export default function TaskListCard({
             <Skeleton className="h-4 w-2/3" />
           </div>
         ) : events && events.length > 0 ? (
-          <TimelineEventList events={events} />
+          <TimelineEventList events={events} renderActions={renderActions} />
         ) : (
           <div className="rounded-xl bg-[#D7E8C0]/40 px-3 py-3 text-[13px] leading-5 text-black/65">
             {emptyText}

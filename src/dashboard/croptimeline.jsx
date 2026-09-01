@@ -1,30 +1,25 @@
 import { useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
-import { Plus, Sprout } from "lucide-react";
+import { Plus, Sprout, RefreshCw, ClipboardList, Lightbulb, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { useAuth } from "../features/auth/authContext";
-import { cropKey, getPlantAgeDays } from "@/lib/cropUtils";
+import { cropKey, formatDate } from "@/lib/cropUtils";
 import useTimelineDashboard from "./timeline/useTimelineDashboard";
+import CropSelectorBar from "./CropSelectorBar";
 import CropOverview from "./timeline/CropOverview";
 import CropStageCard from "./timeline/CropStageCard";
 import CropTimeline from "./timeline/CropTimeline";
 import TodayTasks from "./timeline/TodayTasks";
 import TomorrowTasks from "./timeline/TomorrowTasks";
 import UpcomingTasks from "./timeline/UpcomingTasks";
-import CropHealthCard from "./timeline/CropHealthCard";
-import IrrigationCard from "./timeline/IrrigationCard";
-import SoilCard from "./timeline/SoilCard";
-import WeatherCard from "./timeline/WeatherCard";
-import AIObservationCard from "./timeline/AIObservationCard";
-import AIRecommendationCard from "./timeline/AIRecommendationCard";
-import CropActivityCard from "./timeline/CropActivityCard";
-import ActivityLogger from "./timeline/ActivityLogger";
-import AskAI from "./timeline/AskAI";
-import CropImageAnalysis from "./timeline/CropImageAnalysis";
 
-// Personalized Crop Timeline dashboard page (foundation stage).
-// Reads ONLY existing data: auth user + crops/{uid} via the Outlet context
-// provided by router/dashboardLayout.jsx. No Firestore writes, no fake data.
+// Personalized Crop Timeline — refocused on the lifecycle question:
+// "Where is my crop, what is coming next, and how has the plan changed?"
+// Daily execution lives on Daily Crop Progress; recommendations live on
+// Crop Suggestion. All three pages read the SAME persisted data via
+// useTimelineDashboard, so nothing here is duplicated.
 export default function CropTimelinePage() {
   const { userData, userCropData } = useOutletContext();
   const { currentUser } = useAuth();
@@ -37,8 +32,6 @@ export default function CropTimelinePage() {
   const key = crop ? cropKey(crop, safeIndex) : null;
 
   // Read-only persisted timeline data (bounded reads, no regeneration).
-  // Meta is resolved by a stable date+name suffix so the timeline survives
-  // the index shift caused by deleting another crop.
   const dash = useTimelineDashboard(currentUser?.uid ?? null, crop, key);
 
   // Write-capable children must use the RESOLVED cropId, not the derived key.
@@ -66,6 +59,8 @@ export default function CropTimelinePage() {
     );
   }
 
+  const reviewCount = Number(dash.meta?.reviewCount ?? 0);
+
   return (
     <div className="flex-6 h-screen overflow-y-auto bg-[var(--bg)] p-4 scrollbar-thin scrollbar-track-[#F2DEC4] scrollbar-thumb-[#679936]">
       {/* Page header */}
@@ -78,6 +73,12 @@ export default function CropTimelinePage() {
             Personalized growth timeline
             {userData?.fullname ? ` for ${userData.fullname}'s fields` : ""}
           </p>
+          {dash.meta?.currentStage && (
+            <span className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-[#D7E8C0]/60 px-2.5 py-0.5 text-[11px] font-semibold text-[#3f5f22]">
+              <Sprout size={12} />
+              Current stage: {dash.meta.currentStage}
+            </span>
+          )}
         </div>
         <Button asChild size="sm">
           <Link to="/dashboard/addnewcrop">
@@ -87,45 +88,11 @@ export default function CropTimelinePage() {
       </div>
 
       {/* Crop selector — real crops only */}
-      <div className="mb-4 flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-        {crops.map((c, index) => {
-          const active = index === safeIndex;
-          const ageDays = getPlantAgeDays(c);
-          return (
-            <button
-              key={cropKey(c, index)}
-              onClick={() => setSelectedIndex(index)}
-              className={`flex shrink-0 items-center gap-2 rounded-2xl border-2 px-2 py-1.5 transition-colors cursor-pointer ${
-                active
-                  ? "border-[var(--text1)] bg-[#D7E8C0]"
-                  : "border-transparent bg-[rgba(0,0,0,0.06)] hover:bg-[#D7E8C0]/50"
-              }`}
-            >
-              <span className="w-9 h-9 rounded-full overflow-hidden border border-[var(--text1)] bg-[#D7E8C0]">
-                {c.cropImage ? (
-                  <img
-                    src={c.cropImage}
-                    alt={c.CropName || "Crop"}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <span className="flex items-center justify-center w-full h-full text-sm font-bold text-[var(--text1)]">
-                    {(c.CropName || "C").charAt(0).toUpperCase()}
-                  </span>
-                )}
-              </span>
-              <span className="flex flex-col items-start leading-tight">
-                <span className="text-[14px] font-semibold text-black max-w-[140px] truncate">
-                  {c.CropName || `Crop ${index + 1}`}
-                </span>
-                <span className="text-[11px] text-black/50">
-                  {ageDays != null ? `Day ${ageDays}` : "Age unknown"}
-                </span>
-              </span>
-            </button>
-          );
-        })}
-      </div>
+      <CropSelectorBar
+        crops={crops}
+        selectedIndex={safeIndex}
+        onSelect={setSelectedIndex}
+      />
 
       {/* Overview (real stored crop data + persisted timeline meta) */}
       <CropOverview
@@ -134,10 +101,46 @@ export default function CropTimelinePage() {
         nextMilestone={dash.nextMilestone}
       />
 
-      {/* Main grid */}
+      {/* How the plan has changed — compact review strip, no extra reads
+          (all values already live on the timeline meta doc). */}
+      <Card className="mt-4 gap-3 border-l-4 border-l-[var(--text1)]">
+        <CardContent className="flex flex-wrap items-center gap-2">
+          <span className="flex w-7 h-7 shrink-0 items-center justify-center rounded-full bg-[#D7E8C0]/70">
+            <RefreshCw size={14} className="text-[var(--text1)]" />
+          </span>
+          <div className="min-w-0">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-[#526b55]">
+              Plan changes
+            </p>
+            <span className="text-[13px] text-black/70">
+            {reviewCount > 0 ? (
+              <>
+                <strong>{reviewCount}</strong> AI plan review
+                {reviewCount === 1 ? "" : "s"}
+                {dash.meta?.lastReviewReason
+                  ? ` — last: ${dash.meta.lastReviewReason}`
+                  : ""}
+                {dash.meta?.lastReviewAt
+                  ? ` (${formatDate(dash.meta.lastReviewAt)})`
+                  : ""}
+              </>
+            ) : (
+              "No plan changes yet — new activities, observations and conditions update future events, never completed history."
+            )}
+            </span>
+          </div>
+          {dash.observations.length > 0 && (
+            <Badge variant="secondary" className="ml-auto">
+              {dash.observations.length} recent observation(s)
+            </Badge>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Main grid — lifecycle & upcoming plan only */}
       <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3">
         <div className="grid content-start gap-4 xl:col-span-2">
-          <CropTimeline crop={crop} cropIndex={safeIndex} cropId={dash.cropId} />
+          <CropTimeline crop={crop} cropIndex={safeIndex} cropId={effectiveKey} />
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <TodayTasks
               crop={crop}
@@ -155,53 +158,55 @@ export default function CropTimelinePage() {
               loading={dash.loading}
             />
           </div>
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <ActivityLogger
-              uid={currentUser?.uid ?? null}
-              cropId={effectiveKey}
-              crop={crop}
-              onLogged={dash.reload}
-            />
-            <CropActivityCard
-              crop={crop}
-              activities={dash.activities}
-              loading={dash.loading}
-            />
-          </div>
         </div>
         <div className="grid content-start gap-4">
           <CropStageCard crop={crop} meta={dash.meta} />
-          <CropHealthCard crop={crop} />
-          <WeatherCard
-            crop={crop}
-            weather={dash.weather}
-            weatherError={dash.weatherError}
-            loading={dash.loading}
-          />
-          <IrrigationCard crop={crop} />
-          <SoilCard crop={crop} />
-        </div>
-      </div>
 
-      {/* Bottom row */}
-      <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <AIObservationCard
-          crop={crop}
-          observations={dash.observations}
-          loading={dash.loading}
-        />
-        <AIRecommendationCard
-          crop={crop}
-          analyses={dash.analyses}
-          loading={dash.loading}
-        />
-        <CropImageAnalysis
-          crop={crop}
-          uid={currentUser?.uid ?? null}
-          cropId={effectiveKey}
-          onAnalyzed={dash.reload}
-        />
-        <AskAI crop={crop} />
+          {/* Small contextual pointers instead of full duplicate cards —
+              the details live on their dedicated pages. */}
+          <Link
+            to="/dashboard/cropprogress"
+            className="group flex items-center gap-3 rounded-2xl border border-[#cfe0b5] bg-[#D7E8C0]/30 px-3 py-3 transition-colors hover:bg-[#D7E8C0]/60"
+          >
+            <span className="flex w-9 h-9 shrink-0 items-center justify-center rounded-xl bg-[var(--text1)] text-white">
+              <ClipboardList size={17} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[13px] font-semibold text-black/80">
+                Daily Crop Progress
+              </span>
+              <span className="block text-[12px] text-black/60">
+                {dash.today.length > 0
+                  ? `${dash.today.length} task(s) scheduled today — mark them done`
+                  : "Log today's field activity"}
+              </span>
+            </span>
+            <ChevronRight
+              size={16}
+              className="shrink-0 text-[var(--text1)]/60 transition-transform group-hover:translate-x-0.5"
+            />
+          </Link>
+          <Link
+            to="/dashboard/cropsuggestion"
+            className="group flex items-center gap-3 rounded-2xl border border-[#cfe0b5] bg-[#D7E8C0]/30 px-3 py-3 transition-colors hover:bg-[#D7E8C0]/60"
+          >
+            <span className="flex w-9 h-9 shrink-0 items-center justify-center rounded-xl bg-[var(--text1)] text-white">
+              <Lightbulb size={17} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[13px] font-semibold text-black/80">
+                Crop Suggestion
+              </span>
+              <span className="block text-[12px] text-black/60">
+                Irrigation, nutrition and monitoring suggestions
+              </span>
+            </span>
+            <ChevronRight
+              size={16}
+              className="shrink-0 text-[var(--text1)]/60 transition-transform group-hover:translate-x-0.5"
+            />
+          </Link>
+        </div>
       </div>
     </div>
   );

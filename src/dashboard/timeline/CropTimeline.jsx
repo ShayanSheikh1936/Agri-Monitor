@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { CalendarDays, RefreshCw, Sparkles, Sprout } from "lucide-react";
+import { CalendarDays, Check, RefreshCw, Sparkles, Sprout } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -91,15 +91,19 @@ export default function CropTimeline({ crop, cropIndex = 0, cropId = null }) {
   useEffect(() => {
     if (!currentUser?.uid) return;
     const requestId = ++requestRef.current;
+    // Effect-driven data loading — same established pattern as
+    // useTimelineDashboard (its reload() effect is flagged identically).
+    /* eslint-disable react-hooks/set-state-in-effect */
     setLoading(true);
     setGenError(null);
+    /* eslint-enable react-hooks/set-state-in-effect */
 
     (async () => {
-      let timelineMeta = null;
+      let timelineMeta;
       try {
         timelineMeta = await getTimeline(currentUser.uid, key);
       } catch {
-        timelineMeta = null;
+        /* keep undefined — treated as "no stored timeline" */
       }
       const { events: timelineEvents, failed } = await loadStoredEvents(
         currentUser.uid,
@@ -216,17 +220,27 @@ export default function CropTimeline({ crop, cropIndex = 0, cropId = null }) {
           {!loading &&
             events.map((event) => {
               const isToday = event.date === todayIso;
+              const isCompleted = event.status === "completed";
               return (
-                <div key={event.id} className="relative pb-4">
+                <div
+                  key={event.id}
+                  className={`relative pb-4 ${
+                    isToday ? "rounded-xl bg-[#D7E8C0]/30 py-1 pl-2 pr-2" : ""
+                  }`}
+                >
                   <span
-                    className={`absolute -left-6 top-0.5 w-4 h-4 rounded-full border-2 ${
+                    className={`absolute top-0.5 flex w-4 h-4 items-center justify-center rounded-full border-2 ${
                       isToday
-                        ? "border-[var(--text1)] bg-[var(--text1)]"
-                        : event.status === "completed"
-                          ? "border-[var(--text1)] bg-[#D7E8C0]"
-                          : "border-[var(--text1)]/60 bg-[var(--bg)]"
+                        ? "border-[var(--text1)] bg-[var(--text1)] -left-6"
+                        : isCompleted
+                          ? "border-[var(--text1)] bg-[#D7E8C0] -left-6"
+                          : "border-[var(--text1)]/60 bg-[var(--bg)] -left-6"
                     }`}
-                  />
+                  >
+                    {isCompleted && !isToday && (
+                      <Check size={9} strokeWidth={3} className="text-[#3f5f22]" />
+                    )}
+                  </span>
                   <div className="flex flex-wrap items-center gap-1.5">
                     <p className="text-[14px] font-semibold text-black">
                       Day {event.dayNumber} · {event.title}
@@ -243,6 +257,11 @@ export default function CropTimeline({ crop, cropIndex = 0, cropId = null }) {
                     </span>
                     {event.isEstimated && (
                       <span className="text-[10px] text-black/40 italic">estimated</span>
+                    )}
+                    {isToday && (
+                      <span className="text-[10px] px-1.5 py-0 rounded-full bg-[var(--text1)] text-white font-semibold">
+                        today
+                      </span>
                     )}
                     {Array.isArray(event.history) && event.history.length > 0 && (
                       <span
@@ -336,12 +355,12 @@ export default function CropTimeline({ crop, cropIndex = 0, cropId = null }) {
 
         {/* Intelligent review — updates future events only, keeps history */}
         {hasTimeline && (
-          <div className="mt-3">
+          <div className="mt-3 rounded-xl border border-[#cfe0b5] bg-[#D7E8C0]/25 px-3 py-2.5">
             <button
               type="button"
               onClick={handleReview}
               disabled={reviewing || generating}
-              className="inline-flex items-center gap-1.5 border border-[var(--text1)]/50 text-[var(--text1)] hover:bg-[#D7E8C0]/50 text-[12px] font-semibold px-3 py-1.5 rounded-xl cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-1.5 border border-[var(--text1)]/50 bg-white/60 text-[var(--text1)] hover:bg-[#D7E8C0]/70 text-[12px] font-semibold px-3 py-1.5 rounded-xl cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <RefreshCw size={13} className={reviewing ? "animate-spin" : ""} />
               {reviewing ? "Reviewing timeline…" : "AI Review Timeline"}
@@ -351,7 +370,7 @@ export default function CropTimeline({ crop, cropIndex = 0, cropId = null }) {
               and adjusts only future events — completed history is preserved.
             </p>
             {reviewNote && (
-              <p className="mt-1.5 rounded-xl bg-[#D7E8C0]/50 px-3 py-2 text-[12px] text-black/70">
+              <p className="mt-1.5 rounded-xl bg-[#D7E8C0]/60 px-3 py-2 text-[12px] text-black/70">
                 {reviewNote}
               </p>
             )}

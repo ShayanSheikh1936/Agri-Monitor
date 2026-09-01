@@ -21,7 +21,9 @@ const STATUS_STYLES = {
 // Shows every stored field: date, stage, title, description, tasks,
 // priority, status and a clear estimated indicator. Never fetches,
 // never invents — renders exactly what was persisted.
-export default function TimelineEventList({ events, showTrack = true }) {
+// Optional renderActions(event) lets a page add per-event controls
+// (e.g. mark complete / skip / postpone on Daily Crop Progress).
+export default function TimelineEventList({ events, showTrack = true, renderActions = null }) {
   const todayIso = localDateISO(0);
   const tomorrowIso = localDateISO(1);
 
@@ -125,6 +127,7 @@ export default function TimelineEventList({ events, showTrack = true }) {
                 })}
               </ul>
             )}
+            {typeof renderActions === "function" && renderActions(event)}
           </div>
         );
       })}

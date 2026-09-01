@@ -17,7 +17,7 @@ export default function CropStageCard({ crop, meta = null }) {
   const hasStage = Boolean(meta?.currentStage);
 
   return (
-    <Card>
+    <Card className="border-[#cfe0b5]">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-[16px]">
           <Sprout size={17} className="text-[var(--text1)]" />
@@ -49,16 +49,16 @@ export default function CropStageCard({ crop, meta = null }) {
             {sowing ? formatDate(sowing) : "Unknown"}
           </p>
         </div>
-        <div className="col-span-2 rounded-xl bg-[#D7E8C0]/50 px-3 py-2">
-          <p className="text-[11px] font-bold uppercase text-[#526b55]">
+        <div className="col-span-2 rounded-xl bg-gradient-to-br from-[#679936] to-[#4a7028] px-3 py-3 shadow-sm shadow-[#679936]/25">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-[#D7E8C0]">
             Stage
           </p>
           {hasStage ? (
-            <p className="text-[15px] font-semibold text-black">
+            <p className="text-[17px] font-semibold text-white leading-tight">
               {meta.currentStage}
             </p>
           ) : (
-            <p className="text-[13px] text-black/50">
+            <p className="text-[13px] text-[#D7E8C0]">
               Not generated yet — open Crop Timeline to generate the
               personalized timeline.
             </p>
