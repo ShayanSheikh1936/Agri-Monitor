@@ -63,8 +63,8 @@ const serviceData = {
   "smart-irrigation": {
     title: "Smart Irrigation",
     tagline: "Every drop counts — water smarter, grow better.",
-    heroImg: "https://images.unsplash.com/photo-1625245488600-f03fef636a3c?w=1400&q=80",
-    overviewImg: "https://images.unsplash.com/photo-1530538987395-032d1800fdd4?w=800&q=80",
+    heroImg: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcShixqH-VbnCzbUbe3_DcP2Mb9qvRgc7l3Ga8dpy6-eKg&s=10",
+    overviewImg: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQNq6rNPldmZqBt-EyFjPzl31Xo0wyrUylFfBdb4arublxIyKmPRYkZCCFh&s=10",
     icon: Droplets,
     overview: [
       "Our Smart Irrigation engine calculates the exact daily water volume your crops need based on real-time evapotranspiration rates, soil moisture sensor data, and localized weather forecasts.",
@@ -116,7 +116,7 @@ const serviceData = {
     title: "Fertilizers",
     tagline: "Right fertilizer, right time, right amount.",
     heroImg: "https://images.unsplash.com/photo-1586771107445-b3e7eb4e0a54?w=1400&q=80",
-    overviewImg: "https://images.unsplash.com/photo-1625245488600-f03fef636a3c?w=800&q=80",
+    overviewImg: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTKX7X4vw9FQ6hnGfLyhD_ONyEvGoZVxHGKYnVy098GrA&s=10",
     icon: FlaskConical,
     overview: [
       "Our Fertilizer Recommendation engine takes the guesswork out of feeding your crops. By analyzing soil composition, crop nutrient demand curves, and weather patterns, the system recommends the most effective fertilizer types and quantities.",
@@ -141,8 +141,8 @@ const serviceData = {
   pesticides: {
     title: "Pesticides",
     tagline: "Smart pest management for safer, healthier crops.",
-    heroImg: "https://images.unsplash.com/photo-1592982537447-6f2a6a0c7c18?w=1400&q=80",
-    overviewImg: "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=800&q=80",
+    heroImg: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcShixqH-VbnCzbUbe3_DcP2Mb9qvRgc7l3Ga8dpy6-eKg&s=10",
+    overviewImg: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSo3Zn_W4WyyJ3bQ92gLN-Sd3TrH-pGG6QQQhpOTFUuuw&s=10",
     icon: ShieldAlert,
     overview: [
       "The Pesticides service combines AI-driven pest identification with community-powered outbreak surveillance. When pests are detected in your region, you receive early warnings so you can take preventive action before damage spreads.",
@@ -168,7 +168,7 @@ const serviceData = {
     title: "Soil Testing",
     tagline: "Know your soil — unlock your field's true potential.",
     heroImg: "https://images.unsplash.com/photo-1500937386664-56d1df388b80?w=1400&q=80",
-    overviewImg: "https://images.unsplash.com/photo-1530836369250-ef72a3f5cda8?w=800&q=80",
+    overviewImg: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQe1yzNy_QS4d74rmz00GyNqULPg66S1ArtWCAtAaqzWw&s=10",
     icon: FlaskRound,
     overview: [
       "Our Soil Testing service provides a comprehensive analysis of your field's health. Upload your lab report or use our guided testing kit to measure pH, organic matter, electrical conductivity, and key nutrient levels.",
@@ -232,7 +232,7 @@ export default function ServiceDetail() {
   const Icon = service.icon;
 
   return (
-    <div className={styles.page}>
+    <div className={`${styles.page}`}>
       {/* Back Navigate */}
       <Backnavigate href="/" />
 
