@@ -4,6 +4,7 @@ import { Plus, RefreshCw, Loader2, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "../features/auth/authContext";
 import { cropKey, getPlantAgeDays, getHealthStatus, HEALTH_LABELS } from "@/lib/cropUtils";
+import useDayTick from "@/lib/useDayTick";
 import useTimelineDashboard from "./timeline/useTimelineDashboard";
 import { getAnalysesPage } from "@/services/timelineService";
 import { generateCropRecommendations } from "@/services/timelineGenerator";
@@ -26,6 +27,8 @@ const PAGE_SIZE = 6;
 // as the other pages; refreshed recommendations are generated on demand only.
 export default function CropSuggestionPage() {
   const { userData, userCropData } = useOutletContext();
+  // Keeps "Day N" labels in sync when the tab stays open past midnight.
+  useDayTick();
   const { currentUser } = useAuth();
   const crops = userCropData?.crops ?? [];
   const [selectedIndex, setSelectedIndex] = useState(0);

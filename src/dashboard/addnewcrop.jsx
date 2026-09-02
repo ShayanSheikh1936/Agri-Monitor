@@ -6,6 +6,7 @@ import { fdb } from "../features/auth/firebase";
 import { useAuth } from "../features/auth/authContext";
 import Backnavigate from "../components/BackNavigate";
 import { generateTimelineForNewCrop } from "../services/timelineGenerator";
+import { calculatePlantAgeDays } from "../lib/cropUtils";
 
 export default function DynamicCropForm() {
     const { currentUser } = useAuth();
@@ -41,16 +42,10 @@ export default function DynamicCropForm() {
     const watchCategory = watch("CropCategory");
 
     // Dynamic Feature 1: Auto-calculate Plant Age from Sowing Date
+    // (calendar-day diff via the shared utility — same source of truth the
+    // dashboard reads; negative = future sowing, null = unparsable date).
     useEffect(() => {
-        if (watchSowingDate) {
-            const sowing = new Date(watchSowingDate);
-            const today = new Date();
-            const diffTime = Math.abs(today - sowing);
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            setCalculatedAge(diffDays);
-        } else {
-            setCalculatedAge(null);
-        }
+        setCalculatedAge(watchSowingDate ? calculatePlantAgeDays(watchSowingDate) : null);
     }, [watchSowingDate]);
 
     // Dynamic Feature 2: GPS Auto Location Fetch
@@ -140,7 +135,7 @@ export default function DynamicCropForm() {
         try {
             const cropEntry = {
                 ...data,
-                plantAgeDays: calculatedAge || 0,
+                plantAgeDays: Math.max(calculatedAge ?? 0, 0),
                 gpsLocation: gpsCoords || null,
                 cropImage: cropImage || null,
                 affectedImage: (watchHealthStatus && watchHealthStatus !== "Healthy") ? (affectedImage || null) : null,
@@ -327,7 +322,9 @@ export default function DynamicCropForm() {
                                 </label>
                                 {calculatedAge !== null && (
                                     <span className="text-[10px] text-emerald-700 font-bold ml-2 mt-1 block">
-                                        🌱 Plant Age: {calculatedAge} Days Old
+                                        {calculatedAge >= 0
+                                            ? `🌱 Plant Age: ${calculatedAge} Days Old`
+                                            : `🌱 Not started yet — sowing in ${-calculatedAge} days`}
                                     </span>
                                 )}
                             </span>

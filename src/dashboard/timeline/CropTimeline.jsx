@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "../../features/auth/authContext";
-import { cropKey, getPlantAgeDays, formatDate } from "@/lib/cropUtils";
+import { cropKey, formatPlantAge, formatDate } from "@/lib/cropUtils";
 import {
   getTimeline,
   getTimelineEvents,
@@ -57,7 +57,7 @@ async function loadStoredEvents(uid, key, eventCount) {
 // after another crop's deletion shifted indexes).
 export default function CropTimeline({ crop, cropIndex = 0, cropId = null }) {
   const { currentUser } = useAuth();
-  const ageDays = getPlantAgeDays(crop);
+  const ageLabel = formatPlantAge(crop);
   const key = cropId ?? cropKey(crop, cropIndex);
 
   const [meta, setMeta] = useState(null);
@@ -204,7 +204,7 @@ export default function CropTimeline({ crop, cropIndex = 0, cropId = null }) {
             </p>
             <p className="text-[12px] text-black/55">
               {formatDate(crop.createdAt) ?? "Date unknown"}
-              {ageDays != null && ` — currently day ${ageDays}`}
+              {ageLabel && ` — ${ageLabel}`}
             </p>
           </div>
 

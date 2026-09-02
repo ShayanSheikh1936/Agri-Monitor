@@ -9,7 +9,8 @@ import {
   ChevronRight,
   Lightbulb,
 } from "lucide-react";
-import { cropKey, formatDate, getPlantAgeDays } from "@/lib/cropUtils";
+import { cropKey, formatDate, formatPlantAge } from "@/lib/cropUtils";
+import useDayTick from "@/lib/useDayTick";
 
 // Redesigned dashboard home — an overview / "get to know your dashboard" page.
 // Left column: guide cards explaining how to best use each dashboard page and
@@ -85,7 +86,7 @@ function GuideCard({ to, icon: Icon, title, desc }) {
 
 // One crop profile row — name + created-at date + live plant age.
 function CropRow({ crop, index }) {
-  const ageDays = getPlantAgeDays(crop);
+  const ageLabel = formatPlantAge(crop);
   const created = formatDate(crop.createdAt);
 
   return (
@@ -108,7 +109,7 @@ function CropRow({ crop, index }) {
         </span>
         <span className="text-[12px] text-black/60">
           {created ? `Created ${created}` : "Created recently"}
-          {ageDays != null && <span> • Day {ageDays}</span>}
+          {ageLabel && <span> • {ageLabel}</span>}
         </span>
       </span>
       <ChevronRight size={18} className="ml-auto shrink-0 text-[var(--text1)]" />
@@ -118,6 +119,8 @@ function CropRow({ crop, index }) {
 
 const Dashboard = () => {
   const { userData, userCropData } = useOutletContext();
+  // Keeps "Day N" labels in sync when the tab stays open past midnight.
+  useDayTick();
   const crops = userCropData?.crops ?? [];
   const firstName = (userData?.fullname || "Farmer").trim().split(" ")[0];
 

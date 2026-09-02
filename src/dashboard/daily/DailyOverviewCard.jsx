@@ -2,7 +2,7 @@ import { Sun } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
-  getPlantAgeDays,
+  formatPlantAge,
   getHealthStatus,
   formatDate,
   localDateISO,
@@ -44,7 +44,7 @@ export default function DailyOverviewCard({
   activities = [],
   loading = false,
 }) {
-  const ageDays = getPlantAgeDays(crop);
+  const ageLabel = formatPlantAge(crop);
   const health = getHealthStatus(crop);
   const todayIso = localDateISO(0);
 
@@ -94,7 +94,7 @@ export default function DailyOverviewCard({
             </div>
             <p className="text-[12px] text-black/55">
               {formatDate(new Date())}
-              {ageDays != null && ` • Day ${ageDays}`}
+              {ageLabel && ` • ${ageLabel}`}
             </p>
             <div className="flex flex-wrap gap-1.5">
               {meta?.currentStage ? (

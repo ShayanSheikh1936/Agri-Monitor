@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   getSowingDate,
-  getPlantAgeDays,
+  getPlantAgeInfo,
   getHealthStatus,
   getGpsLocation,
   formatDate,
@@ -48,7 +48,7 @@ function daysUntil(iso) {
 
 export default function CropOverview({ crop, meta = null, nextMilestone = null }) {
   const sowing = getSowingDate(crop);
-  const ageDays = getPlantAgeDays(crop);
+  const ageInfo = getPlantAgeInfo(crop);
   const health = getHealthStatus(crop);
   const gps = getGpsLocation(crop);
   const milestoneDays = daysUntil(nextMilestone?.date);
@@ -117,7 +117,9 @@ export default function CropOverview({ crop, meta = null, nextMilestone = null }
               {sowing
                 ? `Sown on ${formatDate(sowing)}`
                 : "Sowing date not provided"}
-              {ageDays != null && ` • Day ${ageDays} today`}
+              {ageInfo.status === "active" && ` • Day ${ageInfo.days} today`}
+              {ageInfo.status === "notStarted" &&
+                ` • Starts in ${ageInfo.daysUntil} days`}
             </p>
           </div>
         </div>

@@ -7,13 +7,13 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { getSowingDate, getPlantAgeDays, formatDate } from "@/lib/cropUtils";
+import { getSowingDate, getPlantAgeInfo, formatDate } from "@/lib/cropUtils";
 
 // Growth stage from the persisted timeline meta (AI-generated once, then
 // only read here — never regenerated on the dashboard).
 export default function CropStageCard({ crop, meta = null }) {
   const sowing = getSowingDate(crop);
-  const ageDays = getPlantAgeDays(crop);
+  const ageInfo = getPlantAgeInfo(crop);
   const hasStage = Boolean(meta?.currentStage);
 
   return (
@@ -38,7 +38,11 @@ export default function CropStageCard({ crop, meta = null }) {
             Plant Age
           </p>
           <p className="text-[16px] font-semibold text-black">
-            {ageDays != null ? `${ageDays} days` : "Unknown"}
+            {ageInfo.status === "active"
+              ? `${ageInfo.days} days`
+              : ageInfo.status === "notStarted"
+                ? `Starts in ${ageInfo.daysUntil} days`
+                : "Unknown"}
           </p>
         </div>
         <div className="rounded-xl bg-[#D7E8C0]/50 px-3 py-2">

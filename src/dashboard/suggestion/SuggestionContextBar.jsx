@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import {
-  getPlantAgeDays,
+  formatPlantAge,
   getHealthStatus,
   getSowingDate,
   formatDate,
@@ -10,14 +10,14 @@ import {
 // Compact "what the suggestions are based on" strip. Facts only — every
 // value comes from the stored crop profile, timeline meta or live weather.
 export default function SuggestionContextBar({ crop, meta = null, weather = null }) {
-  const ageDays = getPlantAgeDays(crop);
+  const ageLabel = formatPlantAge(crop);
   const sowing = getSowingDate(crop);
   const health = getHealthStatus(crop);
   const condition = meta?.profile?.currentCondition ?? null;
 
   const facts = [
     { label: "Stage", value: meta?.currentStage ?? null },
-    { label: "Age", value: ageDays != null ? `Day ${ageDays}` : null },
+    { label: "Age", value: ageLabel },
     { label: "Sown", value: sowing ? formatDate(sowing) : null },
     { label: "Variety", value: crop.SeedType ?? null },
     { label: "Health", value: health ? (HEALTH_LABELS[health] ?? health) : null },

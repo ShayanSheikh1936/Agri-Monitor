@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "../features/auth/authContext";
 import { cropKey, formatDate } from "@/lib/cropUtils";
+import useDayTick from "@/lib/useDayTick";
 import useTimelineDashboard from "./timeline/useTimelineDashboard";
 import CropSelectorBar from "./CropSelectorBar";
 import CropOverview from "./timeline/CropOverview";
@@ -22,6 +23,8 @@ import UpcomingTasks from "./timeline/UpcomingTasks";
 // useTimelineDashboard, so nothing here is duplicated.
 export default function CropTimelinePage() {
   const { userData, userCropData } = useOutletContext();
+  // Keeps "Day N" labels in sync when the tab stays open past midnight.
+  useDayTick();
   const { currentUser } = useAuth();
   const crops = userCropData?.crops ?? [];
   const [selectedIndex, setSelectedIndex] = useState(0);

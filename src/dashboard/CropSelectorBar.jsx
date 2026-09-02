@@ -1,4 +1,4 @@
-import { cropKey, getPlantAgeDays } from "@/lib/cropUtils";
+import { cropKey, formatPlantAge } from "@/lib/cropUtils";
 
 // Shared crop selector strip — the exact selector previously inlined on the
 // Crop Timeline page, extracted so Crop Timeline, Daily Crop Progress and
@@ -8,7 +8,7 @@ export default function CropSelectorBar({ crops, selectedIndex, onSelect }) {
     <div className="mb-4 flex gap-2 overflow-x-auto pb-1 scrollbar-none">
       {crops.map((c, index) => {
         const active = index === selectedIndex;
-        const ageDays = getPlantAgeDays(c);
+        const ageLabel = formatPlantAge(c);
         return (
           <button
             key={cropKey(c, index)}
@@ -37,7 +37,7 @@ export default function CropSelectorBar({ crops, selectedIndex, onSelect }) {
                 {c.CropName || `Crop ${index + 1}`}
               </span>
               <span className="text-[11px] text-black/50">
-                {ageDays != null ? `Day ${ageDays}` : "Age unknown"}
+                {ageLabel ?? "Age unknown"}
               </span>
             </span>
           </button>

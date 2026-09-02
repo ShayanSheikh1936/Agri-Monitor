@@ -4,6 +4,7 @@ import { Plus, Sunrise } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "../features/auth/authContext";
 import { cropKey } from "@/lib/cropUtils";
+import useDayTick from "@/lib/useDayTick";
 import useTimelineDashboard from "./timeline/useTimelineDashboard";
 import CropSelectorBar from "./CropSelectorBar";
 // Reused timeline cards, relocated here (single source of truth — no copies).
@@ -25,6 +26,8 @@ import DailyAISummary from "./daily/DailyAISummary";
 // the other pages after a reload.
 export default function CropProgressPage() {
   const { userData, userCropData } = useOutletContext();
+  // Keeps "Day N" labels in sync when the tab stays open past midnight.
+  useDayTick();
   const { currentUser } = useAuth();
   const crops = userCropData?.crops ?? [];
   const [selectedIndex, setSelectedIndex] = useState(0);
