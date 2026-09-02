@@ -245,7 +245,8 @@ export default function DashboardLayout() {
           </div>
           <Outlet context={{ userData, userCropData }} />
         </aside>
-        <Chatbot userinfo={userData} />
+        {/* crops are the ones already fetched above — no extra Firestore read. */}
+        <Chatbot userinfo={userData} crops={userCropData?.crops ?? []} />
       </div>
     </>
   )

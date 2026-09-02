@@ -41,6 +41,189 @@
     cursor: pointer;
 }
 
+/* Crop-profile picker opened from the "+" menu. Anchored to the same wrapper
+   as .features, but left-aligned and wider because it holds a search field,
+   a scrollable crop list and an "add new crop" footer. */
+.cropMenu{
+    position: absolute;
+    bottom: 120%;
+    left: 0;
+    z-index: 5;
+    width: min(300px, 72vw);
+    display: flex;
+    flex-direction: column;
+    background-color: white;
+    color: black;
+    text-align: left;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+    overflow: hidden;
+    cursor: default;
+}
+
+.cropMenuHead{
+    padding: 10px 10px 8px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    background-color: #D7E8C0;
+}
+
+.cropSearch{
+    margin-top: 7px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 8px;
+    border-radius: 8px;
+    background-color: rgba(255, 255, 255, 0.75);
+    border: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.cropSearchInput{
+    width: 100%;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: black;
+    font-size: 12px;
+}
+
+.cropList{
+    max-height: 190px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 4px 0;
+}
+
+/* One selectable row: crop avatar + name + dynamic "Day N" age label. */
+.cropItem{
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: transparent;
+    border: none;
+    text-align: left;
+    cursor: pointer;
+}
+
+.cropItem:hover{
+    background-color: rgba(103, 153, 54, 0.12);
+}
+
+.cropItemActive{
+    background-color: #D7E8C0;
+}
+
+.cropItemActive:hover{
+    background-color: #D7E8C0;
+}
+
+.cropAvatar{
+    width: 30px;
+    height: 30px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 1px solid var(--text1);
+    background-color: #D7E8C0;
+    display: grid;
+    place-items: center;
+}
+
+.cropAvatar img{
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.cropEmpty{
+    padding: 10px;
+    font-size: 12px;
+    color: rgba(0, 0, 0, 0.5);
+    text-align: center;
+}
+
+.cropMenuFoot{
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 8px 10px;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    background-color: rgba(0, 0, 0, 0.03);
+    color: var(--text1);
+    font-size: 12px;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.cropMenuFoot:hover{
+    background-color: #D7E8C0;
+}
+
+/* Chip shown above the input while a crop profile is attached. */
+.cropChip{
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 100%;
+    padding: 4px 6px 4px 9px;
+    border-radius: 999px;
+    border: 1px solid var(--text1);
+    background-color: #D7E8C0;
+    color: black;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.cropChipRemove{
+    display: grid;
+    place-items: center;
+    width: 17px;
+    height: 17px;
+    flex-shrink: 0;
+    border: none;
+    border-radius: 50%;
+    background-color: rgba(0, 0, 0, 0.14);
+    color: black;
+    cursor: pointer;
+}
+
+.cropChipRemove:hover{
+    background-color: rgba(220, 38, 38, 0.85);
+    color: white;
+}
+
+/* Label inside a message bubble showing which crop profile that message
+   was about. Base styling suits the light AI bubble… */
+.msgCrop{
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    max-width: 100%;
+    padding: 2px 7px;
+    border-radius: 999px;
+    border: 1px solid var(--text1);
+    background-color: #D7E8C0;
+    color: black;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.4;
+}
+
+/* …and this variant sits on the blue user bubble, so it needs to read as
+   white-on-blue instead. */
+.msgCropUser{
+    align-self: flex-end;
+    border-color: rgba(255, 255, 255, 0.55);
+    background-color: rgba(255, 255, 255, 0.22);
+    color: white;
+}
+
 
 /* .langShow {
     visibility: visible;

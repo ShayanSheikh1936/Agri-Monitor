@@ -1,18 +1,27 @@
 import {
   ChevronRight,
+  Globe,
   LanguagesIcon,
   Maximize,
   Minimize,
   Plus,
+  Search,
   Send,
   Sprout,
   ImagePlus,
+  X,
 } from "lucide-react";
 
+import { Link } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { useState, useRef, useEffect } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import imageCompression from "browser-image-compression";
+import { cropKey, formatPlantAge } from "../lib/cropUtils";
+import {
+  buildChatCropContextPrompt,
+  buildLocalCropContext,
+} from "../services/aiContextBuilder";
 import styles from "./chatbots.module.css";
 
 // Max send attempts — transient network drops ("Failed to fetch") are retried
@@ -56,7 +65,7 @@ function friendlyErrorMessage(err) {
   return err?.message || "Unable to connect to the server.";
 }
 
-export default function Chatbot({ userinfo }) {
+export default function Chatbot({ userinfo, crops }) {
   const [show, setshow] = useState(false);
   const [maximized, setMaximized] = useState(false);
   const [langValue, setlangValue] = useState("English");
@@ -77,8 +86,16 @@ export default function Chatbot({ userinfo }) {
   const [selectedImage, setSelectedImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
 
+  // Crop-profile selection — null means "general agriculture", where no crop
+  // context is added and the request stays exactly as it was before.
+  const [selectedCropKey, setSelectedCropKey] = useState(null);
+  const [showCropMenu, setShowCropMenu] = useState(false);
+  const [cropSearch, setCropSearch] = useState("");
+
   const chatContainerRef = useRef(null);
   const imageInputRef = useRef(null);
+  const featuresRef = useRef(null);
+  const cropMenuRef = useRef(null);
 
   const lanuages = [
     {
@@ -122,6 +139,65 @@ export default function Chatbot({ userinfo }) {
       name: "Hindi",
     },
   ];
+
+  // ------------------------------------
+  // Crop profile selection
+  // ------------------------------------
+  // Memoised so the derived options below keep stable dependencies even when
+  // the parent re-renders with a fresh `crops` array literal.
+  const cropList = useMemo(() => (Array.isArray(crops) ? crops : []), [crops]);
+
+  // Resolved from the stored KEY, never the array index, so the selection
+  // survives a crop being deleted or reordered. A key whose crop is gone
+  // resolves to null → silently back to general mode: no stale chip and no
+  // chance of answering about the wrong crop.
+  const selectedCrop = selectedCropKey
+    ? cropList.find((c, i) => cropKey(c, i) === selectedCropKey) ?? null
+    : null;
+
+  const cropOptions = useMemo(() => {
+    const term = cropSearch.trim().toLowerCase();
+    return cropList
+      .map((crop, index) => ({ crop, index, key: cropKey(crop, index) }))
+      .filter(({ crop }) =>
+        term ? (crop.CropName || "").toLowerCase().includes(term) : true
+      );
+  }, [cropList, cropSearch]);
+
+  // Built synchronously from the crop entry the dashboard already fetched —
+  // no Firestore read, so picking a crop is instant and can never fail while
+  // the farmer is typing (the reply must not depend on extra lookups).
+  const cropContext = useMemo(
+    () => (selectedCrop ? buildLocalCropContext(selectedCrop) : null),
+    [selectedCrop]
+  );
+
+  // Opens the picker from the "+" menu (only one popover visible at a time).
+  const toggleCropMenu = () => {
+    setshowfeatures(false);
+    setCropSearch("");
+    setShowCropMenu((open) => !open);
+  };
+
+  // key === null selects "General agriculture" (no crop context attached).
+  const selectCrop = (key) => {
+    setSelectedCropKey(key);
+    setShowCropMenu(false);
+    setCropSearch("");
+  };
+
+  // Clicking outside closes the picker. The "+" wrapper is excluded so its own
+  // toggle handler stays in charge of that button.
+  useEffect(() => {
+    if (!showCropMenu) return undefined;
+    const onPointerDown = (event) => {
+      const insideMenu = cropMenuRef.current?.contains(event.target);
+      const insideToggle = featuresRef.current?.contains(event.target);
+      if (!insideMenu && !insideToggle) setShowCropMenu(false);
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    return () => document.removeEventListener("mousedown", onPointerDown);
+  }, [showCropMenu]);
 
   // ------------------------------------
   // Auto scroll
@@ -194,6 +270,7 @@ export default function Chatbot({ userinfo }) {
     setImagePreview(previewUrl);
 
     setshowfeatures(false);
+    setShowCropMenu(false);
 
     // Same image dobara select karne ke liye
     e.target.value = "";
@@ -228,6 +305,25 @@ export default function Chatbot({ userinfo }) {
       prompt ||
       "Please analyze this image and identify any crop disease, pest, nutrient deficiency, or other agricultural issue.";
 
+    // The bubble below shows what the farmer typed; the REQUEST carries the
+    // selected crop's profile embedded in the prompt. The backend contract is
+    // fixed ({prompt, lang, image, location}), so crop context can only travel
+    // inside `prompt`. With no crop selected the builder returns userText
+    // unchanged, so the body stays byte-identical to plain general chat.
+    const finalPrompt = buildChatCropContextPrompt(cropContext, userText, {
+      hasImage: Boolean(currentImage),
+    });
+
+    // Snapshot of the crop this question was asked about, stored ON the
+    // message so the bubble stays correctly labelled even if the farmer
+    // switches crops (or removes the chip) before the reply arrives.
+    const cropLabel = selectedCrop
+      ? {
+          name: selectedCrop.CropName || "Selected crop",
+          age: formatPlantAge(selectedCrop),
+        }
+      : null;
+
     // ------------------------------------
     // Show user message immediately
     // ------------------------------------
@@ -237,6 +333,7 @@ export default function Chatbot({ userinfo }) {
         role: "user",
         text: userText,
         image: currentImagePreview || null,
+        crop: cropLabel,
       },
     ]);
 
@@ -286,7 +383,7 @@ export default function Chatbot({ userinfo }) {
       // Send JSON to Netlify Function (timeout + retry on network glitches)
       // ------------------------------------
       const requestBody = JSON.stringify({
-        prompt: userText,
+        prompt: finalPrompt,
         lang: langValue,
         image: imageBase64,
         location: locationParts.join(" ") || null,
@@ -509,6 +606,21 @@ export default function Chatbot({ userinfo }) {
                 }}
               >
                 <div className="flex flex-col gap-2">
+                  {/* Which crop profile this message was asked about */}
+                  {msg.crop && (
+                    <span
+                      className={`${styles.msgCrop} ${
+                        msg.role === "user" ? styles.msgCropUser : ""
+                      }`}
+                    >
+                      <Sprout size={11} className="shrink-0" />
+                      <span className="truncate max-w-[150px]">
+                        {msg.crop.name}
+                        {msg.crop.age ? ` · ${msg.crop.age}` : ""}
+                      </span>
+                    </span>
+                  )}
+
                   {/* Uploaded image */}
                   {msg.image && (
                     <img
@@ -549,6 +661,35 @@ export default function Chatbot({ userinfo }) {
 
         {/* Input Area */}
         <div className="bg-[var(--bg)] border-l-2 border-r-2 border-b-2 border-[var(--text1)] rounded-b-[5px] px-1 flex flex-col">
+          {/* Selected crop profile chip */}
+          {selectedCrop && (
+            <div className="px-2 pt-2 pb-1 flex items-center gap-2 flex-wrap">
+              <span className={styles.cropChip}>
+                <Sprout size={13} color="var(--text1)" className="shrink-0" />
+                <span className="truncate max-w-[120px]">
+                  {selectedCrop.CropName || "Selected crop"}
+                </span>
+                {formatPlantAge(selectedCrop) && (
+                  <span className="text-[11px] font-normal text-black/55 whitespace-nowrap">
+                    {formatPlantAge(selectedCrop)}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  title="Remove crop profile"
+                  onClick={() => selectCrop(null)}
+                  className={styles.cropChipRemove}
+                >
+                  <X size={11} />
+                </button>
+              </span>
+
+              <span className="text-[11px] text-black/55">
+                Answers will use this crop profile
+              </span>
+            </div>
+          )}
+
           {/* Selected image preview */}
           {imagePreview && (
             <div className="px-2 pt-2 pb-1 flex items-center gap-2">
@@ -585,11 +726,15 @@ export default function Chatbot({ userinfo }) {
             />
 
             {/* Features */}
-            <div className="mr-1 rounded-full bg-[var(--text1)] grid place-items-center h-10 w-10 relative inline-block">
+            <div
+              ref={featuresRef}
+              className="mr-1 rounded-full bg-[var(--text1)] grid place-items-center h-10 w-10 relative inline-block"
+            >
               <button
-                onClick={() =>
-                  setshowfeatures(!showfeatures)
-                }
+                onClick={() => {
+                  setShowCropMenu(false);
+                  setshowfeatures(!showfeatures);
+                }}
                 className="grid place-items-center h-10 w-10 cursor-pointer"
               >
                 <Plus size={28} color="white" />
@@ -605,6 +750,15 @@ export default function Chatbot({ userinfo }) {
               >
                 <button
                   type="button"
+                  onClick={toggleCropMenu}
+                  className="cursor-pointer px-3 py-1 capitalize text-nowrap flex gap-1"
+                >
+                  <Sprout color="var(--text1)" />
+                  Select Crop
+                </button>
+
+                <button
+                  type="button"
                   onClick={() =>
                     imageInputRef.current?.click()
                   }
@@ -614,6 +768,119 @@ export default function Chatbot({ userinfo }) {
                   Upload Image
                 </button>
               </div>
+
+              {/* Crop profile picker */}
+              {showCropMenu && (
+                <div
+                  ref={cropMenuRef}
+                  className={styles.cropMenu}
+                >
+                  <div className={styles.cropMenuHead}>
+                    <p className="text-[13px] font-bold text-black leading-4">
+                      Select crop profile
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-black/60 leading-4">
+                      AI answers will use this crop's recorded data
+                    </p>
+
+                    <div className={styles.cropSearch}>
+                      <Search
+                        size={13}
+                        color="rgba(0,0,0,0.4)"
+                        className="shrink-0"
+                      />
+                      <input
+                        type="text"
+                        value={cropSearch}
+                        onChange={(e) => setCropSearch(e.target.value)}
+                        placeholder="Search crops…"
+                        className={styles.cropSearchInput}
+                      />
+                    </div>
+                  </div>
+
+                  <div
+                    className={`${styles.cropList} scrollbar-thin scrollbar-thumb-[var(--text1)]`}
+                  >
+                    {/* General mode — always offered, even with zero crops */}
+                    <button
+                      type="button"
+                      onClick={() => selectCrop(null)}
+                      className={`${styles.cropItem} ${selectedCrop ? "" : styles.cropItemActive}`}
+                    >
+                      <span className={styles.cropAvatar}>
+                        <Globe size={15} color="var(--text1)" />
+                      </span>
+                      <span className="flex flex-col leading-tight min-w-0 flex-1">
+                        <span className="text-[13px] font-semibold text-black truncate">
+                          General agriculture
+                        </span>
+                        <span className="text-[11px] text-black/50">
+                          No crop profile attached
+                        </span>
+                      </span>
+                    </button>
+
+                    {cropOptions.map(({ crop, index, key }) => {
+                      const active = key === selectedCropKey;
+                      const ageLabel = formatPlantAge(crop);
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => selectCrop(key)}
+                          className={`${styles.cropItem} ${active ? styles.cropItemActive : ""}`}
+                        >
+                          <span className={styles.cropAvatar}>
+                            {crop.cropImage ? (
+                              <img
+                                src={crop.cropImage}
+                                alt={crop.CropName || "Crop"}
+                              />
+                            ) : (
+                              <span className="text-[12px] font-bold text-[var(--text1)]">
+                                {(crop.CropName || "C").charAt(0).toUpperCase()}
+                              </span>
+                            )}
+                          </span>
+
+                          <span className="flex flex-col leading-tight min-w-0 flex-1">
+                            <span className="text-[13px] font-semibold text-black truncate">
+                              {crop.CropName || `Crop ${index + 1}`}
+                            </span>
+                            <span className="text-[11px] text-black/50 truncate">
+                              {ageLabel ?? "Age unknown"}
+                            </span>
+                          </span>
+
+                          {active && (
+                            <Sprout
+                              size={14}
+                              color="var(--text1)"
+                              className="shrink-0"
+                            />
+                          )}
+                        </button>
+                      );
+                    })}
+
+                    {cropOptions.length === 0 && (
+                      <p className={styles.cropEmpty}>
+                        No crop matches “{cropSearch.trim()}”
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Reuses the existing add-crop page — no new flow */}
+                  <Link
+                    to="/dashboard/addnewcrop"
+                    onClick={() => setShowCropMenu(false)}
+                    className={styles.cropMenuFoot}
+                  >
+                    <Plus size={14} /> Add new crop
+                  </Link>
+                </div>
+              )}
             </div>
 
             {/* Text input */}
