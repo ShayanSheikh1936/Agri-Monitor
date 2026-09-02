@@ -150,7 +150,7 @@ export function buildTimelinePrompt(context) {
 function resolveApiUrl(options) {
   if (options.apiUrl) return options.apiUrl;
   const env = typeof import.meta.env === "object" ? import.meta.env : {};
-  return env.VITE_API_URL || null;
+  return env.VITE_DASHBOARD_URL || null;
 }
 
 async function callAIBackend(apiUrl, prompt, { location = null, image = null, timeoutMs }) {
@@ -436,7 +436,7 @@ export async function generateCropTimeline(context, options = {}) {
     if (!apiUrl) {
       throw new TimelineGenerationError(
         GENERATION_ERROR_CODES.MISSING_API_URL,
-        "VITE_API_URL is missing. Check your .env.local file."
+        "VITE_DASHBOARD_URL is missing. Check your .env.local file."
       );
     }
     const prompt = buildTimelinePrompt(context);
@@ -751,7 +751,7 @@ export async function analyzeAndSaveCropImage(uid, cropId, options = {}) {
     if (!apiUrl) {
       throw new TimelineGenerationError(
         GENERATION_ERROR_CODES.MISSING_API_URL,
-        "VITE_API_URL is missing. Check your .env.local file."
+        "VITE_DASHBOARD_URL is missing. Check your .env.local file."
       );
     }
     const prompt = buildImageAnalysisPrompt(context, userNotes);
@@ -1126,7 +1126,7 @@ export async function reviewCropTimeline(uid, cropId, options = {}) {
     if (!apiUrl) {
       throw new TimelineGenerationError(
         GENERATION_ERROR_CODES.MISSING_API_URL,
-        "VITE_API_URL is missing. Check your .env.local file."
+        "VITE_DASHBOARD_URL is missing. Check your .env.local file."
       );
     }
     const context = await buildCropAIContext(cropId, { uid });
@@ -1304,7 +1304,7 @@ export async function generateDailySummary(uid, cropId, options = {}) {
     if (!apiUrl) {
       throw new TimelineGenerationError(
         GENERATION_ERROR_CODES.MISSING_API_URL,
-        "VITE_API_URL is missing. Check your .env.local file."
+        "VITE_DASHBOARD_URL is missing. Check your .env.local file."
       );
     }
     const prompt = buildDailySummaryPrompt(context, {
@@ -1572,7 +1572,7 @@ export async function generateCropRecommendations(uid, cropId, options = {}) {
     if (!apiUrl) {
       throw new TimelineGenerationError(
         GENERATION_ERROR_CODES.MISSING_API_URL,
-        "VITE_API_URL is missing. Check your .env.local file."
+        "VITE_DASHBOARD_URL is missing. Check your .env.local file."
       );
     }
     const prompt = buildRecommendationsPrompt(context, {
