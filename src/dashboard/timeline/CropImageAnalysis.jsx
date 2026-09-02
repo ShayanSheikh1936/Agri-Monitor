@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ImagePlus, Loader2, ScanSearch, TriangleAlert } from "lucide-react";
 import {
   Card,
@@ -73,7 +73,7 @@ function Section({ label, items }) {
   );
 }
 
-export default function CropImageAnalysis({ crop, uid, cropId, onAnalyzed }) {
+export default function CropImageAnalysis({ uid, cropId, onAnalyzed }) {
   const fileInputRef = useRef(null);
   const [preview, setPreview] = useState(null); // local object URL only
   const [file, setFile] = useState(null);
@@ -81,6 +81,13 @@ export default function CropImageAnalysis({ crop, uid, cropId, onAnalyzed }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [result, setResult] = useState(null);
+
+  // Single owner of the preview object URL: revoke it whenever it is
+  // replaced and when the card unmounts (e.g. crop-switch remount).
+  useEffect(() => {
+    if (!preview) return undefined;
+    return () => URL.revokeObjectURL(preview);
+  }, [preview]);
 
   function handleFileChange(e) {
     const selected = e.target.files?.[0];
@@ -100,7 +107,6 @@ export default function CropImageAnalysis({ crop, uid, cropId, onAnalyzed }) {
       return;
     }
 
-    if (preview) URL.revokeObjectURL(preview);
     setFile(selected);
     setPreview(URL.createObjectURL(selected));
   }
@@ -145,7 +151,6 @@ export default function CropImageAnalysis({ crop, uid, cropId, onAnalyzed }) {
   }
 
   function handleReset() {
-    if (preview) URL.revokeObjectURL(preview);
     setPreview(null);
     setFile(null);
     setNotes("");

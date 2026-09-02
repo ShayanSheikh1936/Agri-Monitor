@@ -101,8 +101,12 @@ export default function CropProgressPage() {
       {/* Main grid */}
       <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3">
         {/* Left — today's execution */}
+        {/* key: remount these stateful cards on crop switch so form inputs,
+            success/error flags and generated AI output never leak into
+            another crop profile. */}
         <div className="grid content-start gap-4 xl:col-span-2">
           <TodayTaskActions
+            key={`tasks-${key}`}
             uid={currentUser?.uid ?? null}
             cropId={effectiveKey}
             crop={crop}
@@ -113,12 +117,14 @@ export default function CropProgressPage() {
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <ActivityLogger
+              key={`logger-${key}`}
               uid={currentUser?.uid ?? null}
               cropId={effectiveKey}
               crop={crop}
               onLogged={dash.reload}
             />
             <ConditionRecorder
+              key={`condition-${key}`}
               uid={currentUser?.uid ?? null}
               cropId={effectiveKey}
               crop={crop}
@@ -137,6 +143,7 @@ export default function CropProgressPage() {
         {/* Right — today's context */}
         <div className="grid content-start gap-4">
           <DailyAISummary
+            key={`summary-${key}`}
             uid={currentUser?.uid ?? null}
             cropId={effectiveKey}
             crop={crop}

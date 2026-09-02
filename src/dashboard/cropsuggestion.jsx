@@ -271,7 +271,10 @@ export default function CropSuggestionPage() {
             analyses={dash.analyses}
             loading={dash.loading}
           />
+          {/* key: remount on crop switch so the previous crop's image and
+              analysis result never leak into another profile. */}
           <CropImageAnalysis
+            key={`image-${key}`}
             crop={crop}
             uid={currentUser?.uid ?? null}
             cropId={effectiveKey}

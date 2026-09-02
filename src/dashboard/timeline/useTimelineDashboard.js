@@ -26,6 +26,7 @@ import { localDateISO, getGenerationState, cropKeySuffix } from "../../lib/cropU
 const EMPTY = {
   meta: null,
   cropId: null,
+  forKey: null, // input cropId this data was resolved for (staleness guard)
   today: [],
   tomorrow: [],
   upcoming: [],
@@ -112,6 +113,7 @@ export default function useTimelineDashboard(uid, crop, cropId) {
       setData({
         meta,
         cropId: effCropId,
+        forKey: cropId,
         today,
         tomorrow,
         upcoming,
@@ -125,15 +127,21 @@ export default function useTimelineDashboard(uid, crop, cropId) {
     }
   }, [uid, cropId, crop]);
 
+  // Effect-driven data loading — same established pattern as the pages that
+  // consume this hook (their loadFirstPage effects are flagged identically).
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     reload();
   }, [reload]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   return {
     ...data,
     // Resolved cropId (may differ from the derived key after an index shift);
-    // write-capable children must use this id.
-    cropId: data.cropId ?? cropId,
+    // write-capable children must use this id. Guarded against crop switches:
+    // while data still belongs to the PREVIOUS crop (forKey mismatch), fall
+    // back to the freshly derived key so reads/writes never hit the old crop.
+    cropId: data.forKey === cropId ? (data.cropId ?? cropId) : cropId,
     loading,
     reload,
     generationState: getGenerationState(data.meta),
