@@ -1,0 +1,180 @@
+/* =============================================================================
+   Smart Irrigation card animations — CSS module, scoped to this card only.
+   Every class is namespaced by the module hash, so nothing can leak into
+   other pages. Honors prefers-reduced-motion.
+   ========================================================================== */
+
+/* Staggered entrance for sections / schedule columns (delay set inline). */
+.rise {
+  opacity: 0;
+  animation: irrRise 480ms cubic-bezier(0.22, 0.9, 0.35, 1) forwards;
+}
+@keyframes irrRise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Gentle bobbing of the hero droplet. */
+.bob {
+  animation: irrBob 2.6s ease-in-out infinite;
+}
+@keyframes irrBob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+/* Expanding ripple rings behind the hero droplet. */
+.ripple {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  border: 2px solid rgba(56, 189, 248, 0.5);
+  animation: irrRipple 2.4s ease-out infinite;
+}
+@keyframes irrRipple {
+  0% {
+    transform: scale(0.55);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(1.55);
+    opacity: 0;
+  }
+}
+
+/* Tiny droplets falling inside the hero panel. */
+.fall {
+  position: absolute;
+  top: -6px;
+  width: 5px;
+  height: 7px;
+  border-radius: 50% 50% 60% 60%;
+  background: rgba(56, 189, 248, 0.55);
+  animation: irrFall 2.8s linear infinite;
+}
+@keyframes irrFall {
+  0% {
+    transform: translateY(0) scaleY(0.8);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.9;
+  }
+  85% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translateY(64px) scaleY(1.15);
+    opacity: 0;
+  }
+}
+
+/* Soil-moisture gauge: smooth fill + moving shine stripe. */
+.gaugeFill {
+  transition: width 900ms cubic-bezier(0.22, 0.9, 0.35, 1);
+  background-image: linear-gradient(
+    100deg,
+    rgba(255, 255, 255, 0) 30%,
+    rgba(255, 255, 255, 0.45) 50%,
+    rgba(255, 255, 255, 0) 70%
+  );
+  background-size: 220% 100%;
+  background-repeat: no-repeat;
+  animation: irrShine 2.6s ease-in-out infinite;
+}
+@keyframes irrShine {
+  0% {
+    background-position: 130% 0;
+  }
+  100% {
+    background-position: -60% 0;
+  }
+}
+
+/* Kc bars in the stage tab grow from the left on mount. */
+.grow {
+  transform-origin: left center;
+  animation: irrGrow 700ms cubic-bezier(0.22, 0.9, 0.35, 1) both;
+}
+@keyframes irrGrow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* Pulsing marker on the current growth stage / next session. */
+.pulseDot {
+  animation: irrPulse 1.8s ease-out infinite;
+}
+@keyframes irrPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(103, 153, 54, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(103, 153, 54, 0);
+  }
+}
+
+/* Watering-day column: droplet icon drip wiggle on today's column. */
+.drip {
+  animation: irrDrip 1.6s ease-in-out infinite;
+}
+@keyframes irrDrip {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  40% {
+    transform: translateY(2px) scale(1.08);
+  }
+  60% {
+    transform: translateY(1px) scale(1.02);
+  }
+}
+
+/* Note chips slide in from the left. */
+.slideIn {
+  opacity: 0;
+  animation: irrSlideIn 420ms ease-out forwards;
+}
+@keyframes irrSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise,
+  .bob,
+  .ripple,
+  .fall,
+  .gaugeFill,
+  .grow,
+  .pulseDot,
+  .drip,
+  .slideIn {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}

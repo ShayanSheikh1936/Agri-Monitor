@@ -211,7 +211,7 @@ export default function DashboardLayout() {
                 </NavLink>
                 <p className="text-black font-semibold pl-2">Marketplace</p>
                 <NavLink to={"/dashboard/marketplace"} className={({ isActive }) => isActive ? "bg-green-700 cursor-pointer  text-white text-[18px] px-2  py-3 rounded-2xl" : "bg-[rgba(0,0,0,0.1)] cursor-pointer text-black text-[18px] px-2  py-3 rounded-2xl"} >
-                  <p>Current Market Rates</p>
+                  <p>Global Market Rates</p>
                 </NavLink>
                 <p className="text-black font-semibold pl-2">Disaster Management</p>
                 <NavLink to={"/dashboard/disasteralerts"} className={({ isActive }) => isActive ? "bg-red-500/90 cursor-pointer  text-white text-[18px] px-2  py-3 rounded-2xl" : "bg-red-500/90 cursor-pointer text-white text-[18px] px-2  py-3 rounded-2xl"} >
