@@ -7,7 +7,7 @@ export default function Footer() {
             <section className="w-full bg-[#4D7429] flex pb-3 border-b-2 border-b-black justify-between">
                 <div className="w-fit flex justify-center items-center px-3 flex-col gap-5">
                     <img src="logo1.svg" alt="" className="w-60 bg-[var(--bg)] rounded-b-full" />
-                    <p className="text-center w-90">Lorem, ipsum dolor sit amet consectetur adipisicing elit. Doloremque, exercitationem obcaecati sapiente corporis esse vero quo cupiditate atque debitis quos!</p>
+                    <p className="text-center w-90">Your smart farming companion — real-time crop monitoring, weather forecasts, soil insights and AI-driven guidance, all in one place. Grow smarter, not harder.</p>
                 </div>
                 <div className="container flex flex-col gap-10 ">
                     <div className={`relative flex justify-end uppercase font-sans  gap-2 items-center container  text-black ${styles.newslatter}`}><span>
