@@ -51,5 +51,13 @@ service cloud.firestore {
     match /weatherAlerts/{uid}/{document=**} {
       allow read, write: if isOwner(uid);
     }
+
+    // Global Market Rates page — marketData/{uid}/favorites|analyses/**
+    // and marketData/{uid}/settings/preferences. Rooted at the auth uid, so a
+    // user can never read or modify another user's watchlist or saved AI
+    // analyses — owner only.
+    match /marketData/{uid}/{document=**} {
+      allow read, write: if isOwner(uid);
+    }
   }
 }

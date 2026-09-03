@@ -28,6 +28,7 @@ const CropSuggestionPage = lazyWithRetry(() => import("../src/dashboard/cropsugg
 const WeatherForecastPage = lazyWithRetry(() => import("../src/dashboard/weatherforecast"));
 const WeatherAlertsPage = lazyWithRetry(() => import("../src/dashboard/weatheralerts"));
 const DisasterAlertsPage = lazyWithRetry(() => import("../src/dashboard/disasteralerts"));
+const MarketplacePage = lazyWithRetry(() => import("../src/dashboard/marketplace"));
 
 // Shared lazy-route fallback spinner (matches the dashboard theme).
 const PageFallback = (
@@ -145,11 +146,13 @@ export default function Routers() {
                             ),
                         },
                         {
-                            path: "/dashboard/weatherwarnings",
-                            element: <h1 className="text-2xl flex-6">weather warnings</h1>,
-                        },{
                             path: "/dashboard/marketplace",
-                            element: <h1 className="text-2xl flex-6">marketplace</h1>,
+                            errorElement: PageError,
+                            element: (
+                                <Suspense fallback={PageFallback}>
+                                    <MarketplacePage />
+                                </Suspense>
+                            ),
                         },{
                             path: "/dashboard/disasteralerts",
                             errorElement: PageError,
