@@ -62,6 +62,25 @@ function friendlyErrorMessage(err) {
   if (err instanceof TypeError) {
     return "Could not reach the AI server (network error). Please check your connection and try again.";
   }
+  // The backend proxy echoes its own upstream failures verbatim, so the raw
+  // body text is usually meaningless to the user ("Provider returned error").
+  // Translate the HTTP status into something actionable instead.
+  switch (err?.status) {
+    case 429:
+      return "The AI service is busy or its quota is used up (rate limit). Please try again in a few minutes.";
+    case 401:
+    case 403:
+      return "The AI service rejected its own credentials. This needs a backend fix.";
+    case 402:
+      return "The AI service has run out of paid credits. This needs a backend fix.";
+    case 500:
+    case 502:
+    case 503:
+    case 504:
+      return "The AI service is temporarily unavailable. Please try again shortly.";
+    default:
+      break;
+  }
   return err?.message || "Unable to connect to the server.";
 }
 
@@ -425,7 +444,13 @@ export default function Chatbot({ userinfo, crops }) {
           // API error — no point retrying these
           // ------------------------------------
           if (!res.ok) {
-            throw new Error(data.error || "Something went wrong.");
+            // Carry the HTTP status so friendlyErrorMessage can distinguish a
+            // provider rate limit from a gateway outage or a real API message.
+            const apiError = new Error(
+              data.error || `AI service returned HTTP ${res.status}.`
+            );
+            apiError.status = res.status;
+            throw apiError;
           }
 
           // ------------------------------------
