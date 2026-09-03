@@ -1,0 +1,40 @@
+# Netlify configuration for the Agri Monitor SPA (Vite + React).
+# Keeping this in the repo means the build settings travel with the code
+# instead of living only in the Netlify UI.
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  # Vite 8 requires Node ^20.19.0 || >=22.12.0 — an older runtime fails the
+  # build and leaves a stale deploy being served, which surfaces in the
+  # browser as "Failed to fetch dynamically imported module".
+  NODE_VERSION = "22"
+
+# SPA fallback. Netlify only applies this when no real file matches the path,
+# so /assets/*.js chunks are still served as JS. Without it, a hard refresh on
+# a deep link like /dashboard/cropsuggestion returns a 404 page.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# index.html must never be cached. A cached copy keeps pointing at the hashed
+# chunk names of a previous deploy, and those files no longer exist.
+[[headers]]
+  for = "/"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+# Hashed assets carry a unique content hash in the filename, so they are safe
+# to cache aggressively.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

@@ -15,15 +15,19 @@ import Features from "../src/pages/features";
 import Services from "../src/pages/services";
 import ServiceDetail from "../src/pages/serviceDetail";
 import NotFound from "../src/pages/notfound";
-import { lazy, Suspense } from "react";
+import { Suspense } from "react";
+import { lazyWithRetry } from "./lazyWithRetry";
+import RouteErrorBoundary from "./RouteErrorBoundary";
 
-// Lazy-loaded so the Crop Timeline page is code-split out of the initial bundle
-const CropTimelinePage = lazy(() => import("../src/dashboard/croptimeline"));
-const CropProgressPage = lazy(() => import("../src/dashboard/cropprogress"));
-const CropSuggestionPage = lazy(() => import("../src/dashboard/cropsuggestion"));
-const WeatherForecastPage = lazy(() => import("../src/dashboard/weatherforecast"));
-const WeatherAlertsPage = lazy(() => import("../src/dashboard/weatheralerts"));
-const DisasterAlertsPage = lazy(() => import("../src/dashboard/disasteralerts"));
+// Lazy-loaded so each dashboard page is code-split out of the initial bundle.
+// lazyWithRetry self-heals the "Failed to fetch dynamically imported module"
+// error that hits visitors holding a stale bundle after a new deploy.
+const CropTimelinePage = lazyWithRetry(() => import("../src/dashboard/croptimeline"));
+const CropProgressPage = lazyWithRetry(() => import("../src/dashboard/cropprogress"));
+const CropSuggestionPage = lazyWithRetry(() => import("../src/dashboard/cropsuggestion"));
+const WeatherForecastPage = lazyWithRetry(() => import("../src/dashboard/weatherforecast"));
+const WeatherAlertsPage = lazyWithRetry(() => import("../src/dashboard/weatheralerts"));
+const DisasterAlertsPage = lazyWithRetry(() => import("../src/dashboard/disasteralerts"));
 
 // Shared lazy-route fallback spinner (matches the dashboard theme).
 const PageFallback = (
@@ -32,10 +36,16 @@ const PageFallback = (
     </div>
 );
 
+// Attached to the lazy leaf routes so the error renders inside the dashboard
+// layout (sidebar stays mounted) instead of replacing the whole screen.
+const PageError = <RouteErrorBoundary />;
+
 export default function Routers() {
     const setup = createBrowserRouter([
         {
             path: "/",
+            // Catch-all boundary for the eagerly imported routes.
+            errorElement: <RouteErrorBoundary />,
             // element: <Layout />,
             children: [
                 {
@@ -100,6 +110,7 @@ export default function Routers() {
                         },
                         {
                             path: "/dashboard/cropprogress",
+                            errorElement: PageError,
                             element: (
                                 <Suspense fallback={PageFallback}>
                                     <CropProgressPage />
@@ -108,6 +119,7 @@ export default function Routers() {
                         },
                         {
                             path: "/dashboard/cropsuggestion",
+                            errorElement: PageError,
                             element: (
                                 <Suspense fallback={PageFallback}>
                                     <CropSuggestionPage />
@@ -116,6 +128,7 @@ export default function Routers() {
                         },
                         {
                             path: "/dashboard/weatherforecast",
+                            errorElement: PageError,
                             element: (
                                 <Suspense fallback={PageFallback}>
                                     <WeatherForecastPage />
@@ -124,6 +137,7 @@ export default function Routers() {
                         },
                         {
                             path: "/dashboard/weatheralerts",
+                            errorElement: PageError,
                             element: (
                                 <Suspense fallback={PageFallback}>
                                     <WeatherAlertsPage />
@@ -138,6 +152,7 @@ export default function Routers() {
                             element: <h1 className="text-2xl flex-6">marketplace</h1>,
                         },{
                             path: "/dashboard/disasteralerts",
+                            errorElement: PageError,
                             element: (
                                 <Suspense fallback={PageFallback}>
                                     <DisasterAlertsPage />
@@ -145,6 +160,7 @@ export default function Routers() {
                             ),
                         },{
                             path: "/dashboard/croptimeline",
+                            errorElement: PageError,
                             element: (
                                 <Suspense fallback={PageFallback}>
                                     <CropTimelinePage />

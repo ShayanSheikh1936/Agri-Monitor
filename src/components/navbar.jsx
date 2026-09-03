@@ -2,8 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import logo from "../assets/logo.svg"
 import styles from "./navbar.module.css"
 import Submenu from "./submenu";
-import background1 from "../assets/background1.png"
-import video1 from "../assets/video1.mp4"
 import { ChevronDown, Menu, X } from "lucide-react";
 import { Link, NavLink } from "react-router-dom";
 import { useAuth } from "../features/auth/authContext";

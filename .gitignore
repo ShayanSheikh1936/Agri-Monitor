@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Uncompressed source media, kept locally for re-encoding only.
+# Too large to commit or deploy — src/assets holds the compressed version.
+media-original/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -2,7 +2,7 @@ import Navbar, { Navbar2 } from "../components/navbar";
 import styles from "./home.module.css"
 import video1 from "../assets/video1.mp4"
 import background3 from "../assets/background3.png"
-import background1 from "../assets/background1.png"
+import background1 from "../assets/background1.webp"
 import { DetailsBox } from "../components/section2box";
 import { CalendarDays, Droplet, Send, Sprout } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -133,7 +133,7 @@ export default function Home() {
             {show && <Navbar2 />}
             {/* <Navbar /> */}
             <header className="h-screen w-full">
-                <video autoPlay muted className="object-cover w-full h-full opacity-50" >
+                <video autoPlay muted loop playsInline className="object-cover w-full h-full opacity-50" >
                     <source src={video1} type="video/mp4" />
                 </video>
                 <div className=" absolute top-1/5 flex transform -translate-x-1/2 left-1/2 w-full items-center justify-between">
