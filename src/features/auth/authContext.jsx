@@ -1,7 +1,8 @@
 import { auth, fdb } from "./firebase";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, getRedirectResult } from "firebase/auth";
 import { createContext, useEffect, useState, useContext } from "react";
 import { doc, getDoc } from "firebase/firestore";
+import { ensureUserDoc } from "../../components/formServices";
 
 const AuthContext = createContext();
 
@@ -11,6 +12,18 @@ export default function AuthProvider({ children }) {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        // Complete a Google redirect sign-in (Safari/iOS use the redirect
+        // flow because the OAuth popup is unreliable there). Runs once when
+        // the app reloads after Google returns; resolves to null on normal
+        // loads, so it never interferes with popup/email sign-in.
+        getRedirectResult(auth)
+            .then((result) => {
+                if (result?.user) ensureUserDoc(result.user);
+            })
+            .catch((error) => {
+                console.error("Google redirect sign-in failed:", error?.code || error?.message);
+            });
+
         // 1. Firebase auth state change listener ko direct useEffect mein attach karein
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             setCurrentUser(user);

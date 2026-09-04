@@ -1,32 +1,82 @@
 import { auth, fdb, Googleprovider } from "../features/auth/firebase";
-import { signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
+import {
+  signInWithPopup,
+  signInWithRedirect,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+} from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
-import { useNavigate } from "react-router-dom";
+
+// Create the users/{uid} profile document if it doesn't exist yet.
+// Shared by the Google popup + redirect sign-in flows so a first-time
+// Google user always gets a profile row.
+export const ensureUserDoc = async (user) => {
+  try {
+    const userRef = doc(fdb, "users", user.uid);
+    const docsnap = await getDoc(userRef);
+    if (!docsnap.exists()) {
+      const fullName = user.displayName || "";
+      const [first, ...rest] = fullName.split(" ");
+      await setDoc(userRef, {
+        fullname: fullName,
+        EmailAddress: user.email,
+        displayphoto: user.photoURL,
+        firstName: first || "",
+        lastName: rest.join(" ") || "",
+        uid: user.uid,
+      });
+    }
+  } catch (error) {
+    console.warn("ensureUserDoc failed:", error?.code || error?.message);
+  }
+};
+
+// The OAuth popup flow is unreliable on Safari / iOS — the popup's storage
+// session gets torn down mid-flow, producing "database is closing/hidden"
+// style errors. Those environments must use the redirect flow instead.
+const needsRedirectFlow = () => {
+  const ua = navigator.userAgent || "";
+  const isIOS =
+    /iP(hone|ad|od)/.test(ua) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const isSafariStandalone =
+    /Safari/.test(ua) &&
+    !/Chrome|Chromium|CriOS|FxiOS|Edg|OPiOS|OPR|Android/.test(ua);
+  return isIOS || isSafariStandalone;
+};
 
 // 1. Handle Google Sign-In
 export const executeGoogleSignIn = async () => {
   try {
+    // Safari / iOS: use the redirect flow from the start.
+    if (needsRedirectFlow()) {
+      await signInWithRedirect(auth, Googleprovider);
+      // Page navigates to Google and back; the result is completed by
+      // getRedirectResult() inside AuthProvider on reload.
+      return { user: null, error: null, redirected: true };
+    }
+
     const googleUser = await signInWithPopup(auth, Googleprovider);
     const user = googleUser.user;
-    // Firestore Document Reference
-    const userRef = doc(fdb, "users", user.uid);
-
-    // Check if the user document already exists
-    const docsnap = await getDoc(userRef);
-    if (!docsnap.exists()) {
-      // If the document doesn't exist, create it
-      await setDoc(userRef, {
-        fullname: user.displayName,
-        EmailAddress: user.email,
-        displayphoto: user.photoURL,
-        firstName: user.displayName.split(" ")[0],
-        lastName: user.displayName.split(" ")[1],
-        uid: user.uid,
-      });
-    }
+    await ensureUserDoc(user);
     return { user, error: null };
   } catch (error) {
-    // console.error("Error in google sign in:", error);
+    // If the popup failed for an environment reason, retry via redirect so
+    // the user can still finish sign-in instead of hitting a dead error.
+    const redirectFallbackCodes = new Set([
+      "auth/operation-not-supported-in-environment",
+      "auth/web-storage-unsupported",
+      "auth/internal-error",
+      "auth/invalid-origin",
+    ]);
+    if (redirectFallbackCodes.has(error.code)) {
+      try {
+        await signInWithRedirect(auth, Googleprovider);
+        return { user: null, error: null, redirected: true };
+      } catch (redirectError) {
+        return { user: null, error: redirectError.code || redirectError.message };
+      }
+    }
     return { user: null, error: error.code || error.message };
   }
 };
