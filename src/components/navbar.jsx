@@ -48,16 +48,16 @@ export default function Navbar() {
         <>
             <nav className="absolute top-0 w-full pl-4 flex justify-between items-center z-100" >
                 <div className="logo flex items-center justify-center bg-[#F2DEC4] rounded-b-full px-1"><img src="logo1.svg" alt="agrimonitor" width={105} height={105} /></div>
-                <div className="hidden md:block"><ul className={`flex gap-8 ${styles.navlists} items-center text-[var(--bg)]`} >
+                <div className="hidden md:block "><ul className={`flex gap-8 ${styles.navlists} items-center text-[var(--bg)]`} >
                     <li className={`${styles.navList}  py-7 before:bg-[var(--bg)]`} ><NavLink className={({isActive})=> isActive ? `${styles.Activenav} py-7 before:bg-[var(--bg)]`:""} to="/">Home</NavLink></li>
                     <li ref={showMenu} className={`${styles.navList} navList py-7 before:bg-[var(--bg)] relative flex gap-1 items-center`}><p>Services</p>  <p className="arrow-down"><ChevronDown /></p>{show && <Submenu />}</li>
                     <li className={`${styles.navList} py-7 before:bg-[var(--bg)]`}><NavLink className={({isActive})=> isActive ? `${styles.Activenav} py-7 before:bg-[var(--bg)]`:""} to="/features">Features</NavLink></li>
                     <li className={`${styles.navList}  py-7  before:bg-[var(--bg)]`}><NavLink className={({isActive})=> isActive ? `${styles.Activenav} py-7 before:bg-[var(--bg)]`:""} to="/blogs">Blogs </NavLink></li>
                     <li className={`${styles.navList}  py-7 before:bg-[var(--bg)]`}><NavLink className={({isActive})=> isActive ? `${styles.Activenav} py-7 before:bg-[var(--bg)]`:""} to="/contact">Contact Us</NavLink></li>
                 </ul></div>
-                <div className="hidden md:block"><ul className="flex gap-4 min-w-max bg-[#F2DEC4] pl-5 pt-5 pb-5 pr-2 rounded-l-full items-center">
+                <div className="hidden md:block"><ul className="md:gap-3 md:pl-4 flex gap-4 min-w-max bg-[#F2DEC4] pl-5 pt-5 pb-5 pr-2 rounded-l-full items-center">
                     <Link to="/login" className={`${styles.login} login grid place-items-center`}><p>Login</p></Link>
-                    <Link to={currentUser ? "/dashboard" : "/signup"} className={`${styles.signUp} signUp grid place-items-center`}><p>{currentUser ? "Go to Dashboard" : "Sign Up"}</p></Link>
+                    <Link to={currentUser ? "/dashboard" : "/signup"} className={`${styles.signUp}  signUp grid place-items-center`}><p>{currentUser ? "Go to Dashboard" : "Sign Up"}</p></Link>
                 </ul></div>
                 {/* Mobile hamburger toggle */}
                 <button

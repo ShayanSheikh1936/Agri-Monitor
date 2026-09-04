@@ -85,17 +85,23 @@ export const executeFormLogin = async (data) => {
   const { EmailAddress, passwords } = data;
   try {
     const userCredentials = await signInWithEmailAndPassword(auth, EmailAddress, passwords)
-    const user = await userCredentials.user
+    const user = userCredentials.user
 
+    // Read user doc from Firestore. If this fails (e.g. auth token hasn't
+    // propagated to Firestore yet, or rules not deployed), login still
+    // succeeds — AuthProvider's onAuthStateChanged will retry the read.
+    let docData = null;
+    try {
+      const userdata = doc(fdb, "users", user.uid);
+      const docsnap = await getDoc(userdata);
+      if (docsnap.exists()) {
+        docData = docsnap.data();
+      }
+    } catch (fsErr) {
+      console.warn("Post-login Firestore read deferred to AuthProvider:", fsErr?.code);
+    }
 
-    // setuserData(await doc(fdb, "users", user.uid))
-    const userdata = await doc(fdb, "users", user.uid)
-    // console.log(userdata)
-
-    const docsnap = await getDoc(userdata)
-    // console.log(docsnap.data());
-
-    return { user: user, error: null, docData: docsnap.data() };
+    return { user: user, error: null, docData: docData };
 
   } catch (error) {
     // console.error("Error in google sign in:", error);

@@ -136,7 +136,7 @@ export default function Home() {
                 <video autoPlay muted loop playsInline className="object-cover w-full h-full opacity-50" >
                     <source src={video1} type="video/mp4" />
                 </video>
-                <div className=" absolute top-1/5 flex transform -translate-x-1/2 left-1/2 w-full items-center justify-between">
+                <div className=" absolute top-1/4 md:top-1/5 flex transform -translate-x-1/2 left-1/2 w-full items-center justify-between">
                     <div className="ml-4 md:w-1/2 flex flex-col gap-9 md:gap-5">
                         <p className="text-2xl text-[var(--text-h)] mt-2 font-sans text-wrap ">Pakistan #1 Agricultural Monitoring Platform</p>
                         <h1 className="lg:text-9xl lg:w-fit font-bold text-[var(--text-h)] bebas-neue-regular md:text-8xl w-100 text-7xl  ">AI Powered Agricultural Monitoring</h1>

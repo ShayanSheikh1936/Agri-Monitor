@@ -26,19 +26,22 @@ export default function DashboardLayout() {
   useEffect(() => {
     const fetchUserData = async () => {
       if (currentUser) {
-        // Firestore se additional details lein
-        const docRef = doc(fdb, "users", currentUser.uid);
-        const cropRef = doc(fdb, "crops", currentUser.uid);
-        const docSnap = await getDoc(docRef);
-        const cropSnap = await getDoc(cropRef);
-        console.log(cropSnap.data());
+        try {
+          // Firestore se additional details lein
+          const docRef = doc(fdb, "users", currentUser.uid);
+          const cropRef = doc(fdb, "crops", currentUser.uid);
+          const docSnap = await getDoc(docRef);
+          const cropSnap = await getDoc(cropRef);
 
-        if (cropSnap.exists()) {
-          setUserCropData(cropSnap.data());
-        }
+          if (cropSnap.exists()) {
+            setUserCropData(cropSnap.data());
+          }
 
-        if (docSnap.exists()) {
-          setUserData(docSnap.data());
+          if (docSnap.exists()) {
+            setUserData(docSnap.data());
+          }
+        } catch (error) {
+          console.error("Error fetching dashboard data:", error);
         }
       }
     };

@@ -16,20 +16,32 @@ export default function AuthProvider({ children }) {
             setCurrentUser(user);
 
             if (user) {
-                try {
-                    // 2. User log in hai toh firestore se info fetch karein
-                    const docRef = doc(fdb, "users", user.uid);
-                    const docSnap = await getDoc(docRef);
+                // Retry with increasing delay — handles the case where the
+                // Firestore SDK hasn't finished processing the auth token
+                // propagation yet (common right after signIn resolves).
+                const maxRetries = 3;
+                for (let attempt = 0; attempt < maxRetries; attempt++) {
+                    try {
+                        // 2. User log in hai toh firestore se info fetch karein
+                        const docRef = doc(fdb, "users", user.uid);
+                        const docSnap = await getDoc(docRef);
 
-                    if (docSnap.exists()) {
-                        const data = docSnap.data();
-                        setPersonalinfo(!!data?.personaluser);
-                    } else {
-                        setPersonalinfo(false);
+                        if (docSnap.exists()) {
+                            const data = docSnap.data();
+                            setPersonalinfo(!!data?.personaluser);
+                        } else {
+                            setPersonalinfo(false);
+                        }
+                        break; // success — exit retry loop
+                    } catch (error) {
+                        if (attempt < maxRetries - 1) {
+                            // Wait before retrying (1s, 2s, 3s…)
+                            await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+                        } else {
+                            console.error("Error fetching user personal info:", error);
+                            setPersonalinfo(false);
+                        }
                     }
-                } catch (error) {
-                    console.error("Error fetching user personal info:", error);
-                    setPersonalinfo(false);
                 }
             } else {
                 // User logged out hai
