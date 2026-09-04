@@ -129,7 +129,7 @@ smarter farming decisions.
 <tr>
 <td align="center" style="padding:10px 40px 35px;">
 
-<a href="http://agrimonitorai.netlify.app/"
+<a href="http://agrimonitorai.netlify.app/dashboard"
 style="display:inline-block;background-color:#315B38;color:#ffffff;text-decoration:none;font-size:16px;font-weight:bold;padding:15px 32px;border-radius:10px;">
 Open Your Dashboard
 </a>
@@ -267,7 +267,7 @@ Access your crops, AI tools, weather insights, alerts,
 forecasts and market information from one dashboard.
 </p>
 
-<a href="https://agrimonitorai.netlify.app/dashboard"
+<a href="https://agrimonitorai.netlify.app/"
 style="display:inline-block;background-color:#26352A;color:#ffffff;text-decoration:none;font-size:15px;font-weight:bold;padding:14px 28px;border-radius:9px;">
 Go to Agri Monitor
 </a>
