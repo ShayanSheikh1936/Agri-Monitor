@@ -67,3 +67,10 @@
    }
 
   
+html {
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: var(--text1) var(--bg);
+  scrollbar-thumb: var(--text1);
+  scrollbar-track: var(--bg); 
+}

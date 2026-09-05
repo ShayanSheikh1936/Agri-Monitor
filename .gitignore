@@ -27,4 +27,3 @@ media-original/
 *.sln
 *.sw?
 *.env
-.env.example
