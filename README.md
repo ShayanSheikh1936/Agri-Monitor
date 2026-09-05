@@ -40,7 +40,7 @@
 
 The platform connects to external AI endpoints for intelligent analysis (crop disease detection from photos, recommendation generation, timeline planning) and stores all user data securely in Firebase (Authentication + Firestore + Realtime Database).
 
-> **Live URL:** [https://test1936.netlify.app/](https://test1936.netlify.app/)
+> **Live URL:** [https://agrimonitorai.netlify.app/](https://agrimonitorai.netlify.app/)
 
 ---
 
@@ -135,7 +135,7 @@ agrimonitor/
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/agrimonitor.git
+git clone https://github.com/ShayanSheikh1936/Agri-Monitor.git
 cd agrimonitor
 
 # Install dependencies
@@ -204,17 +204,6 @@ The project is configured for **Netlify** deployment:
 
 ---
 
-## Market API
-
-The Global Market Rates page fetches commodity data from:
-
-```
-https://test1936.netlify.app/.netlify/functions/market
-```
-
-This endpoint returns world commodity reference prices used by the marketplace dashboard for price tracking, watchlist management, comparison and AI-powered market insights.
-
----
 
 <p align="center">
   Built with care for the farming community.

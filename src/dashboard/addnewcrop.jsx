@@ -175,7 +175,7 @@ export default function DynamicCropForm() {
 
     return (
         <div className="w-full p-2 md:pb-8 bg-[var(--bg)] overflow-x-hidden">
-            <Backnavigate tooltiptext="go to dashboard page" href="/dashboard" />
+            <Backnavigate tooltiptext="go to dashboard page " href="/dashboard" />
             {/* Header Banner */}
             <div className="bg-gradient-to-r from-[var(--bg)] to-[var(--text1)] rounded-3xl p-6 text-white mb-8 shadow-xl relative overflow-hidden flex gap-2 items-center">
                 <div>

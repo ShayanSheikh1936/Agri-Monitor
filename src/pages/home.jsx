@@ -137,9 +137,9 @@ export default function Home() {
                     <source src={video1} type="video/mp4" />
                 </video>
                 <div className=" absolute top-1/4 md:top-1/5 flex transform -translate-x-1/2 left-1/2 w-full items-center justify-between">
-                    <div className="ml-4 md:w-1/2 flex flex-col gap-9 md:gap-5">
+                    <div className="ml-4 pr-4 md:pr-0 md:w-1/2 flex flex-col gap-9 md:gap-5">
                         <p className="text-2xl text-[var(--text-h)] mt-2 font-sans text-wrap ">Pakistan #1 Agricultural Monitoring Platform</p>
-                        <h1 className="lg:text-9xl lg:w-fit font-bold text-[var(--text-h)] bebas-neue-regular md:text-8xl w-100 text-7xl  ">AI Powered Agricultural Monitoring</h1>
+                        <h1 className="lg:text-9xl lg:w-fit lg:max-w-none font-bold text-[var(--text-h)] bebas-neue-regular md:text-8xl md:w-100 w-full max-w-100 text-6xl sm:text-7xl  ">AI Powered Agricultural Monitoring</h1>
                     </div>
                     <div className="lg:w-fit lg:place-items-center lg:w-1/2 md:w-72 md:grid lg:grid  max-w-md mr-2 hidden">
                         {/* <h1 className="text-7xl font-bold text-white bebas-neue-regular">Welcome to Agrimonitor</h1>
@@ -150,10 +150,11 @@ export default function Home() {
             </header>
             <section className="w-full bg-[#F2DEC4] flex flex-col gap-10 bg-cover bg-center bg-no-repeat" style={{ backgroundImage: `url(${background3})`, backgroundSize: "1500px 1000px" }}>
                 <div className="flex flex-col gap-3">
-                    <div className="bg-[#679936] w-fit text-[var(--text-h)] p-5 pr-12 tracking-wider mt-4 text-3xl lg:text-5xl md:text-5xl bebas-neue-regular rounded-r-full">Optimize Resource Management</div>
-                    <p className="lg:w-1/2 md:w-3/4 w-fit  text-black pl-5 font-sans text-1xl">Take the guesswork out of farming. By simply selecting your crop and entering your planting date, our smart engine calculates exactly what your field needs—day by day, start to harvest.</p>
+                    <div className="bg-[#679936] w-fit max-w-full text-[var(--text-h)] p-5 pr-12 tracking-wider mt-4 text-2xl sm:text-3xl lg:text-5xl md:text-5xl bebas-neue-regular rounded-r-full">Optimize Resource Management</div>
+                    <p className="lg:w-1/2 md:w-3/4 w-fit max-w-full  text-black pl-5 pr-5 md:pr-0 font-sans text-1xl">Take the guesswork out of farming. By simply selecting your crop and entering your planting date, our smart engine calculates exactly what your field needs—day by day, start to harvest.</p>
                 </div>
-                <div className="flex gap-3 flex-nowrap overflow-x-auto scrollbar-none pt-14 pb-10 ml-1 mr-1">
+                {/* Swipeable card carousel on small screens, 3-across row from lg up */}
+                <div className="flex gap-3 flex-nowrap overflow-x-auto snap-x scrollbar-none pt-14 pb-10 ml-1 mr-1">
                     {
                         data.map((value) => {
 
@@ -164,14 +165,15 @@ export default function Home() {
             </section>
             <section className="w-full bg-cover bg-center bg-no-repeat flex flex-col gap-5 items-center px-5" style={{ background: `linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url(${background1}) center center/cover fixed` }}>
                 <div className="flex flex-col gap-3 pt-10 items-center">
-                    <div className="text-6xl bebas-neue-regular">THE FEATURES OF AI AGRICULTURE</div>
-                    <div className="text-center w-1/2 font-sans tracking-wider">The features of AI agriculture is here. With Agrimonitor, you can take control of your agricultural operations and maximize your yield. Experience the future of agriculture today.</div>
+                    <div className="text-4xl sm:text-5xl md:text-6xl bebas-neue-regular text-center">THE FEATURES OF AI AGRICULTURE</div>
+                    <div className="text-center w-full sm:w-3/4 md:w-1/2 font-sans tracking-wider">The features of AI agriculture is here. With Agrimonitor, you can take control of your agricultural operations and maximize your yield. Experience the future of agriculture today.</div>
                 </div>
-                <div className="w-full flex justify-between pb-3 ">
-                    <div className="flex flex-col gap-5">
+                {/* Stacks into one column below lg — the 3-across row needs ~900px */}
+                <div className="w-full flex flex-col lg:flex-row justify-between items-center gap-10 lg:gap-0 pb-3 ">
+                    <div className="flex flex-col gap-5 items-center">
                         {
                             data2.filter((value) => value.id < 4).map((e) => {
-                                return (<div key={e.id} className="w-60 bg-[#F2DEC4] rounded-2xl flex flex-col gap-2 p-1">
+                                return (<div key={e.id} className="w-60 max-w-full bg-[#F2DEC4] rounded-2xl flex flex-col gap-2 p-1">
                                     <h2 className="text-center text-black text-3xl bebas-neue-regular border-b-1">{e.title}</h2>
                                     <p className="text-center font-sans text-black">{e.para}</p>
                                 </div>
@@ -179,11 +181,11 @@ export default function Home() {
                             })
                         }
                     </div>
-                    <div className="flex justify-center items-center"><img src="/logo1.png" alt="" width={"400px"} /></div>
-                    <div className="flex flex-col gap-5">
+                    <div className="flex justify-center items-center"><img src="/logo1.png" alt="" width={"400px"} className="max-w-full h-auto" /></div>
+                    <div className="flex flex-col gap-5 items-center">
                         {
                             data2.filter((value) => value.id > 3).map((e) => {
-                                return (<div key={e.id} className="w-60 bg-[#F2DEC4] rounded-2xl flex flex-col gap-2 p-1">
+                                return (<div key={e.id} className="w-60 max-w-full bg-[#F2DEC4] rounded-2xl flex flex-col gap-2 p-1">
                                     <h2 className="text-center text-black text-3xl bebas-neue-regular border-b-1 ">{e.title}</h2>
                                     <p className="text-center font-sans text-black">{e.para}</p>
                                 </div>

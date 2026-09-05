@@ -47,15 +47,16 @@ export default function Navbar() {
     return (
         <>
             <nav className="absolute top-0 w-full pl-4 flex justify-between items-center z-100" >
-                <div className="logo flex items-center justify-center bg-[#F2DEC4] rounded-b-full px-1"><img src="logo1.svg" alt="agrimonitor" width={105} height={105} /></div>
-                <div className="hidden md:block "><ul className={`flex gap-8 ${styles.navlists} items-center text-[var(--bg)]`} >
+                <div className="logo shrink-0 flex items-center justify-center bg-[#F2DEC4] rounded-b-full px-1"><img src="logo1.svg" alt="agrimonitor" width={105} height={105} /></div>
+                {/* Desktop links need ~1000px, so they break at lg — not md */}
+                <div className="hidden lg:block "><ul className={`flex gap-8 lg:gap-5 xl:gap-8 ${styles.navlists} items-center text-[var(--bg)]`} >
                     <li className={`${styles.navList}  py-7 before:bg-[var(--bg)]`} ><NavLink className={({isActive})=> isActive ? `${styles.Activenav} py-7 before:bg-[var(--bg)]`:""} to="/">Home</NavLink></li>
                     <li ref={showMenu} className={`${styles.navList} navList py-7 before:bg-[var(--bg)] relative flex gap-1 items-center`}><p>Services</p>  <p className="arrow-down"><ChevronDown /></p>{show && <Submenu />}</li>
                     <li className={`${styles.navList} py-7 before:bg-[var(--bg)]`}><NavLink className={({isActive})=> isActive ? `${styles.Activenav} py-7 before:bg-[var(--bg)]`:""} to="/features">Features</NavLink></li>
                     <li className={`${styles.navList}  py-7  before:bg-[var(--bg)]`}><NavLink className={({isActive})=> isActive ? `${styles.Activenav} py-7 before:bg-[var(--bg)]`:""} to="/blogs">Blogs </NavLink></li>
                     <li className={`${styles.navList}  py-7 before:bg-[var(--bg)]`}><NavLink className={({isActive})=> isActive ? `${styles.Activenav} py-7 before:bg-[var(--bg)]`:""} to="/contact">Contact Us</NavLink></li>
                 </ul></div>
-                <div className="hidden md:block"><ul className="md:gap-3 md:pl-4 flex gap-4 min-w-max bg-[#F2DEC4] pl-5 pt-5 pb-5 pr-2 rounded-l-full items-center">
+                <div className="hidden lg:block"><ul className="md:gap-3 md:pl-4 flex gap-4 min-w-max bg-[#F2DEC4] pl-5 pt-5 pb-5 pr-2 rounded-l-full items-center">
                     <Link to="/login" className={`${styles.login} login grid place-items-center`}><p>Login</p></Link>
                     <Link to={currentUser ? "/dashboard" : "/signup"} className={`${styles.signUp}  signUp grid place-items-center`}><p>{currentUser ? "Go to Dashboard" : "Sign Up"}</p></Link>
                 </ul></div>
@@ -63,13 +64,13 @@ export default function Navbar() {
                 <button
                     aria-label="Toggle navigation menu"
                     onClick={() => setMobileOpen((open) => !open)}
-                    className="md:hidden mr-4 p-2 rounded-xl bg-[#F2DEC4] text-black cursor-pointer grid place-items-center"
+                    className="lg:hidden mr-4 shrink-0 p-2 rounded-xl bg-[#F2DEC4] text-black cursor-pointer grid place-items-center"
                 >
                     {mobileOpen ? <X size={28} /> : <Menu size={28} />}
                 </button>
                 {/* Mobile dropdown menu */}
                 {mobileOpen && (
-                    <div className="absolute top-full left-0 w-full bg-[#F2DEC4] border-b-2 border-black shadow-lg md:hidden">
+                    <div className="absolute top-full left-0 w-full max-h-[calc(100dvh-7rem)] overflow-y-auto overscroll-contain bg-[#F2DEC4] border-b-2 border-black shadow-lg lg:hidden">
                         <ul className="flex flex-col p-4 gap-1 text-black">
                             <li className="px-3 py-2"><NavLink onClick={() => setMobileOpen(false)} className="block" to="/">Home</NavLink></li>
                             <li className="px-3 py-2"><NavLink onClick={() => setMobileOpen(false)} className="block" to="/services">Services</NavLink></li>
@@ -92,24 +93,49 @@ export default function Navbar() {
 export function Navbar2() {
     const showMenu = useRef(null);
     const show = useServicesHover(showMenu);
+    const [mobileOpen, setMobileOpen] = useState(false);
     // Device session check: logged-in users see "Go to Dashboard" instead of "Sign Up"
     const { currentUser } = useAuth();
 
     return (
         <>
             <nav className="backdrop-blur-[5px] fixed top-0 w-full pl-4 flex justify-between items-center z-100" >
-                <div className="logo flex items-center justify-center bg-[#F2DEC4] rounded-b-full px-1"><img src="logo1.svg" alt="agrimonitor" width={105} height={105} /></div>
-                <div><ul className={`flex gap-8 ${styles.navlists} `} >
+                <div className="logo shrink-0 flex items-center justify-center bg-[#F2DEC4] rounded-b-full px-1"><img src="logo1.svg" alt="agrimonitor" width={105} height={105} /></div>
+                <div className="hidden lg:block"><ul className={`flex gap-8 lg:gap-5 xl:gap-8 ${styles.navlists} `} >
                     <li className={`${styles.navList}  py-7  before:bg-white`} ><NavLink className={({isActive}) => isActive ? `${styles.Activenav} py-7 before:bg-white`: ""} to="/">Home</NavLink></li>
                     <li ref={showMenu} className={`${styles.navList} before:bg-white navList py-7 relative flex gap-1 items-center`}><p>Services</p>  <p className="arrow-down"><ChevronDown /></p>{show && <Submenu />}</li>
                     <li className={`${styles.navList}  py-7  before:bg-white`}><NavLink className={({isActive}) => isActive ? `${styles.Activenav} py-7 before:bg-white`: ""} to="/features">Features</NavLink></li>
                     <li className={`${styles.navList}  py-7 flex gap-1 items-center before:bg-white`}><NavLink className={({isActive}) => isActive ? `${styles.Activenav} py-7 before:bg-white`: ""} to="/blogs">Blogs </NavLink><ChevronDown /></li>
                     <li className={`${styles.navList}  py-7  before:bg-white`}><NavLink className={({isActive}) => isActive ? `${styles.Activenav} py-7 before:bg-white`: ""} to="/contact">Contact Us</NavLink></li>
                 </ul></div>
-                <div><ul className="flex gap-4 bg-[#F2DEC4] pl-5 pt-5 pb-5 pr-2 rounded-l-full">
+                <div className="hidden lg:block"><ul className="flex gap-4 bg-[#F2DEC4] pl-5 pt-5 pb-5 pr-2 rounded-l-full">
                     <li className={`${styles.login} login grid place-items-center`}><NavLink to="/login">Login</NavLink></li>
                     <li className={`${styles.signUp} signUp grid place-items-center`}><NavLink to={currentUser ? "/dashboard" : "/signup"}>{currentUser ? "Go to Dashboard" : "Sign Up"}</NavLink></li>
                 </ul></div>
+                {/* Mobile hamburger toggle */}
+                <button
+                    aria-label="Toggle navigation menu"
+                    onClick={() => setMobileOpen((open) => !open)}
+                    className="lg:hidden mr-4 shrink-0 p-2 rounded-xl bg-[#F2DEC4] text-black cursor-pointer grid place-items-center"
+                >
+                    {mobileOpen ? <X size={28} /> : <Menu size={28} />}
+                </button>
+                {/* Mobile dropdown menu */}
+                {mobileOpen && (
+                    <div className="absolute top-full left-0 w-full max-h-[calc(100dvh-7rem)] overflow-y-auto overscroll-contain bg-[#F2DEC4] border-b-2 border-black shadow-lg lg:hidden">
+                        <ul className="flex flex-col p-4 gap-1 text-black">
+                            <li className="px-3 py-2"><NavLink onClick={() => setMobileOpen(false)} className="block" to="/">Home</NavLink></li>
+                            <li className="px-3 py-2"><NavLink onClick={() => setMobileOpen(false)} className="block" to="/services">Services</NavLink></li>
+                            <li className="px-3 py-2"><NavLink onClick={() => setMobileOpen(false)} className="block" to="/features">Features</NavLink></li>
+                            <li className="px-3 py-2"><NavLink onClick={() => setMobileOpen(false)} className="block" to="/blogs">Blogs</NavLink></li>
+                            <li className="px-3 py-2"><NavLink onClick={() => setMobileOpen(false)} className="block" to="/contact">Contact Us</NavLink></li>
+                            <li className="flex gap-3 px-3 pt-2">
+                                <Link onClick={() => setMobileOpen(false)} to="/login" className="flex-1 text-center bg-[var(--text1)] text-white px-4 py-2 rounded-full">Login</Link>
+                                <Link onClick={() => setMobileOpen(false)} to={currentUser ? "/dashboard" : "/signup"} className="flex-1 text-center bg-green-700 text-white px-4 py-2 rounded-full">{currentUser ? "Go to Dashboard" : "Sign Up"}</Link>
+                            </li>
+                        </ul>
+                    </div>
+                )}
             </nav>
             
         </>
