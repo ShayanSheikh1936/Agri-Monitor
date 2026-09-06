@@ -10,13 +10,13 @@
 </p>
 
 <p align="center">
-  <a href="https://test1936.netlify.app/">
+  <a href="https://agrimonitorai.netlify.app/">
     <img src="https://img.shields.io/badge/Live_Demo-Netlify-brightgreen?style=flat-square" alt="Live Demo" />
   </a>
   <img src="https://img.shields.io/badge/React-19-blue?style=flat-square&logo=react" alt="React" />
   <img src="https://img.shields.io/badge/Vite-8-purple?style=flat-square&logo=vite" alt="Vite" />
   <img src="https://img.shields.io/badge/Tailwind_CSS-4-skyblue?style=flat-square&logo=tailwindcss" alt="Tailwind CSS" />
-  <img src="https://img.shields.io/badge/Firebase-Auth_%2B_Firestore-orange?style=flat-square&logo=firebase" alt="Firebase" />
+  <img src="https://img.shields.io/badge/Firebase-Auth_%2B_Firestore_%2B_RTDB-orange?style=flat-square&logo=firebase" alt="Firebase" />
 </p>
 
 ---
@@ -80,13 +80,17 @@ The platform connects to external AI endpoints for intelligent analysis (crop di
 | **Build Tool** | Vite 8 |
 | **Styling** | Tailwind CSS 4 |
 | **UI Components** | shadcn/ui (Radix UI primitives + class-variance-authority) |
-| **Icons** | Lucide React |
+| **Icons** | Lucide React, Tailwind Icons, Font Awesome |
 | **Routing** | React Router DOM 7 |
 | **Backend / Auth** | Firebase (Authentication, Firestore, Realtime Database) |
 | **Forms** | React Hook Form |
 | **Markdown** | react-markdown + remark-gfm |
 | **Image Processing** | browser-image-compression |
+| **Email Notification Workflow** | N8N, Docker, Nginx, Duckdns|
+| **Workflow Deployment** | Alibaba Cloud (ECS)|
 | **Deployment** | Netlify (Node 22 runtime) |
+| **Version Control** | Git, Github |
+| **IDE** | Qoder |
 
 ---
 
@@ -169,9 +173,10 @@ Copy `.env.example` to `.env.local` and fill in the values:
 
 | Variable | Purpose | Consumed By |
 |----------|---------|-------------|
+| `Qwen-Model` | Images Analisis and predictions using Qwen2.5 VL 72B Instruct | `Vite_API_URL, Vite_DASHBOARD_URL` |
 | `VITE_API_URL` | Chatbot AI endpoint (POST) | `src/components/chatbots.jsx` |
-| `VITE_DASHBOARD_URL` | Dashboard AI endpoint (timeline, image analysis, recommendations) | `src/services/timelineGenerator.js` |
-| `VITE_WEBHOOK_URL` | Notification webhook URL | Weather Alert notifications |
+| `VITE_DASHBOARD_URL` | Dashboard AI endpoint (timeline, image analysis, recommendations, suggestions) | `src/services/timelineGenerator.js` |
+| `VITE_WEBHOOK_URL` | Notification webhook URL | Welcome Notification, Weather Alert notifications |
 | `VITE_DISASTER_API_URL` | Disaster alert feed (leave empty for mock data) | `src/services/disasterAlertService.js` |
 | `VITE_MARKET_API_URL` | Global commodity market feed | `src/services/marketRateService.js` |
 
