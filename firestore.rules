@@ -4,6 +4,8 @@
 // Enforces the ownership model the app code already follows by path:
 //   users/{uid}, crops/{uid}, timelineData/{uid}/crops/{cropId}/**
 // A signed-in user may ONLY read/write documents under their own auth uid.
+// The one exception is the Agri Doctor feature (collection `agriDoctor`), where
+// a dedicated doctor account may also read/reply to every farmer's consult.
 // Everything else is denied by default.
 //
 // DEPLOY (from the project root, one-time setup):
@@ -27,6 +29,24 @@ service cloud.firestore {
 
     function isOwner(uid) {
       return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // The dedicated Agri Doctor account (auto-provisioned on first portal
+    // sign-in — see src/doctor/doctorAuth.js). Recognised by its auth email so
+    // it can read/write EVERY farmer's consultation. Keep this in sync with
+    // DOCTOR_EMAIL in src/services/agriDoctorService.js. To harden for
+    // production, create this Firebase Auth user manually and rotate its
+    // password rather than relying on the client-side gate.
+    function isDoctor() {
+      return isSignedIn()
+        && request.auth.token.email == 'agridoctor@agrimonitor.app';
+    }
+
+    // True when the signed-in user owns the given Agri Doctor session doc.
+    function ownsSession(sessionId) {
+      return isSignedIn()
+        && get(/databases/$(database)/documents/agriDoctor/main/sessions/$(sessionId)).data.userId
+           == request.auth.uid;
     }
 
     // User profile document (personal info, display photo).
@@ -58,6 +78,49 @@ service cloud.firestore {
     // analyses — owner only.
     match /marketData/{uid}/{document=**} {
       allow read, write: if isOwner(uid);
+    }
+
+    // =========================================================================
+    // Agri Doctor — consultation feature (collection root `agriDoctor`).
+    //   agriDoctor/main/credits/{uid}                       -> farmer credit balance
+    //   agriDoctor/main/slots/{slotKey}                     -> shared slot occupancy
+    //   agriDoctor/main/sessions/{sessionId}                -> one consultation
+    //   agriDoctor/main/sessions/{sessionId}/messages/{id}  -> chat thread
+    // Farmers are scoped to their OWN records; the doctor account (isDoctor())
+    // can read/write all of them so it can review photos and send an opinion.
+    // =========================================================================
+
+    // Credit balance — owner only (the doctor does not need it).
+    match /agriDoctor/main/credits/{uid} {
+      allow read, write: if isOwner(uid);
+    }
+
+    // Shared slot occupancy — any signed-in user may read the schedule and
+    // update seat counts. Over-booking / over-spend is prevented by the booking
+    // TRANSACTION in agriDoctorService.bookSlot, not by these rules.
+    match /agriDoctor/main/slots/{slotKey} {
+      allow read, write: if isSignedIn() || isDoctor();
+    }
+
+    // Consultation session + its message thread.
+    match /agriDoctor/main/sessions/{sessionId} {
+      // A farmer may create a session only for themselves.
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid;
+      // Owner (or doctor) may read/update/delete the session.
+      allow read, update, delete: if isDoctor()
+        || (isSignedIn() && resource.data.userId == request.auth.uid);
+
+      match /messages/{messageId} {
+        // Read the thread of your own session; the doctor reads all.
+        allow read: if isDoctor() || ownsSession(sessionId);
+        // A farmer posts only as role "user" in their own session; the doctor
+        // posts freely. Stops a farmer from forging a "doctor" message.
+        allow create: if isDoctor()
+          || (ownsSession(sessionId) && request.resource.data.senderRole == 'user');
+        // Only the doctor edits/deletes messages (farmers never do in-app).
+        allow update, delete: if isDoctor();
+      }
     }
   }
 }

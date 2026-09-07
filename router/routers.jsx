@@ -29,6 +29,11 @@ const WeatherForecastPage = lazyWithRetry(() => import("../src/dashboard/weather
 const WeatherAlertsPage = lazyWithRetry(() => import("../src/dashboard/weatheralerts"));
 const DisasterAlertsPage = lazyWithRetry(() => import("../src/dashboard/disasteralerts"));
 const MarketplacePage = lazyWithRetry(() => import("../src/dashboard/marketplace"));
+const AgriDoctorPage = lazyWithRetry(() => import("../src/dashboard/agridoctor"));
+
+// Private Agri Doctor console (username/password gate + its own Firebase doctor
+// session). Kept OUTSIDE the dashboard so it is not tied to a farmer account.
+const DoctorPortalPage = lazyWithRetry(() => import("../src/doctor/DoctorPortal"));
 
 // Shared lazy-route fallback spinner (matches the dashboard theme).
 const PageFallback = (
@@ -91,6 +96,19 @@ export default function Routers() {
                 {
                     path: "/personalinfo",
                     element: (<ProtectedRoute><PersonalInfo /></ProtectedRoute>)
+                },
+                {
+                    // Private Agri Doctor console — its own username/password
+                    // gate (src/doctor/doctorAuth.js), deliberately OUTSIDE the
+                    // Firebase-auth dashboard so it is never tied to a farmer
+                    // account and never appears in the user sidebar.
+                    path: "/doctor",
+                    errorElement: <RouteErrorBoundary />,
+                    element: (
+                        <Suspense fallback={PageFallback}>
+                            <DoctorPortalPage />
+                        </Suspense>
+                    ),
                 },
                 {
                     path: "/dashboard/addnewcrop",
@@ -167,6 +185,14 @@ export default function Routers() {
                             element: (
                                 <Suspense fallback={PageFallback}>
                                     <CropTimelinePage />
+                                </Suspense>
+                            ),
+                        },{
+                            path: "/dashboard/agridoctor",
+                            errorElement: PageError,
+                            element: (
+                                <Suspense fallback={PageFallback}>
+                                    <AgriDoctorPage />
                                 </Suspense>
                             ),
                         }
