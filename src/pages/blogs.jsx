@@ -166,7 +166,7 @@ export default function Blogs() {
 
         {/* Bottom wave */}
         <div className="relative">
-          <svg viewBox="0 0 1440 60" className="w-full block" preserveAspectRatio="none">
+          <svg viewBox="0 0 1440 60" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full block border-none " preserveAspectRatio="none">
             <path d="M0,60 L0,20 Q360,60 720,20 Q1080,-20 1440,20 L1440,60 Z" fill="#F2DEC4" />
           </svg>
         </div>

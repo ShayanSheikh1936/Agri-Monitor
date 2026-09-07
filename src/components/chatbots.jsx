@@ -94,7 +94,7 @@ export default function Chatbot({ userinfo, crops }) {
   const [messages, setMessages] = useState([
     {
       role: "ai",
-      text: `Assalamualaikum! Me aapka Agri Assistant hun. Fasal, khaad ya bimari ke bare me poochen 😊`,
+      text: `Hello👋 Iam a Agri Assistant. How can I assist you today?`,
     },
   ]);
 
