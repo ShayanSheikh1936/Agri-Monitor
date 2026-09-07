@@ -15,8 +15,10 @@ import {
   subscribeCredits,
   subscribeSlots,
   subscribeUserSessions,
+  subscribeDoctorProfile,
   sweepSessions,
   bookSlot,
+  attachCropToSession,
   SESSION_STATUS,
 } from "@/services/agriDoctorService";
 import {
@@ -32,6 +34,7 @@ import {
   slotStartMs,
 } from "./agriDoctorSlots";
 import { describeBookingError } from "./agriDoctorMeta";
+import { buildCropSnapshot, describeCropError } from "./agriDoctorCrop";
 import useDayTick from "@/lib/useDayTick";
 
 const SWEEP_INTERVAL_MS = 30_000;
@@ -46,6 +49,11 @@ export default function useAgriDoctor(uid, userDoc) {
   // The slotKey currently being booked (null when idle). Tracking the KEY —
   // not just a boolean — lets exactly one slot card show its own "Booking…".
   const [bookingKey, setBookingKey] = useState(null);
+  // True while a crop profile is being attached to a session (one-shot, then
+  // locked forever) so only that button shows its own spinner.
+  const [attachingCrop, setAttachingCrop] = useState(false);
+  // The doctor's public profile, live from the hub doc.
+  const [doctorProfile, setDoctorProfile] = useState(null);
   const [actionError, setActionError] = useState("");
 
   const mountedRef = useRef(true);
@@ -121,6 +129,15 @@ export default function useAgriDoctor(uid, userDoc) {
     return () => unsub();
   }, [uid]);
 
+  // ---- The doctor's public profile (who am I talking to?) ------------------
+  useEffect(() => {
+    if (!uid) return undefined;
+    const unsub = subscribeDoctorProfile((profile) => {
+      if (mountedRef.current) setDoctorProfile(profile);
+    });
+    return () => unsub();
+  }, [uid]);
+
   // ---- Lifecycle sweep ----------------------------------------------------
   const runSweep = useCallback(async () => {
     if (!uid || sweepingRef.current || sessions.length === 0) return;
@@ -146,8 +163,10 @@ export default function useAgriDoctor(uid, userDoc) {
   }, [runSweep]);
 
   // ---- Booking ------------------------------------------------------------
+  // `cropOption` is OPTIONAL: a farmer may book without tying a crop, and may
+  // still attach one later inside the session (attachCrop below).
   const book = useCallback(
-    async (slot, date) => {
+    async (slot, date, cropOption = null) => {
       if (!uid) return { ok: false, code: "no-auth" };
       const key = slotKey(date, slot.id);
       setBookingKey(key);
@@ -159,6 +178,12 @@ export default function useAgriDoctor(uid, userDoc) {
           slot,
           date,
           slotKey: key,
+          crop: cropOption?.key
+            ? {
+                cropKey: cropOption.key,
+                snapshot: buildCropSnapshot(cropOption.crop),
+              }
+            : null,
           nowMs: Date.now(),
         });
         return {
@@ -175,6 +200,37 @@ export default function useAgriDoctor(uid, userDoc) {
       }
     },
     [uid, userDoc]
+  );
+
+  // ---- Attaching the ONE crop to a session (permanent) ---------------------
+  // The service refuses inside a transaction when the session already has a
+  // crop, and firestore.rules rejects the same write server-side, so this can
+  // never silently swap a consultation's crop.
+  const attachCrop = useCallback(
+    async (sessionId, cropOption) => {
+      if (!uid || !sessionId) return { ok: false, code: "no-auth" };
+      if (!cropOption?.key) {
+        return { ok: false, code: "invalid", title: "Pick a crop", description: "Select a crop profile first." };
+      }
+      setAttachingCrop(true);
+      setActionError("");
+      try {
+        await attachCropToSession({
+          sessionId,
+          cropKey: cropOption.key,
+          snapshot: buildCropSnapshot(cropOption.crop),
+          nowMs: Date.now(),
+        });
+        return { ok: true };
+      } catch (err) {
+        const info = describeCropError(err);
+        setActionError(info.title);
+        return { ok: false, code: err?.code, ...info };
+      } finally {
+        setAttachingCrop(false);
+      }
+    },
+    [uid]
   );
 
   // ---- Derived slot grid (dates x slots, with live occupancy) -------------
@@ -234,7 +290,10 @@ export default function useAgriDoctor(uid, userDoc) {
     openSessions,
     upcomingSessions,
     historySessions,
+    doctorProfile,
     book,
+    attachCrop,
+    attachingCrop,
     bookingKey,
     booking: bookingKey !== null,
     actionError,

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { Stethoscope, History, Inbox } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,22 +8,32 @@ import { useToast } from "@/components/ui/useToast";
 import { useAuth } from "@/features/auth/authContext";
 import { SLOT_COST } from "@/services/agriDoctorService";
 import { formatClock } from "./agridoctor/agriDoctorSlots";
+import { buildCropOptions } from "./agridoctor/agriDoctorCrop";
 import useAgriDoctor from "./agridoctor/useAgriDoctor";
 import CreditBalanceCard from "./agridoctor/CreditBalanceCard";
+import DoctorProfileCard from "./agridoctor/DoctorProfileCard";
 import SlotPicker from "./agridoctor/SlotPicker";
 import SessionCard from "./agridoctor/SessionCard";
 import ConsultationChat from "./agridoctor/ConsultationChat";
 
-// Agri Doctor — farmer side. Book a 2-hour consultation slot (5 credits), then
-// chat with the doctor (text / image / voice) while the window is open. All
-// state flows through useAgriDoctor -> agriDoctorService; this file only lays
-// it out. Nothing here touches crops, weather or any other existing feature.
+// Agri Doctor — farmer side. Book a 2-hour consultation slot (5 credits),
+// optionally tie it to ONE crop profile, then chat with the doctor (text /
+// image / voice) while the window is open. All state flows through
+// useAgriDoctor -> agriDoctorService; this file only lays it out. The crop list
+// is the one the dashboard layout already fetched (outlet context), so nothing
+// here adds a Firestore read or touches another feature.
 function AgriDoctorInner() {
   const { currentUser } = useAuth();
-  const { userData } = useOutletContext();
+  const { userData, userCropData } = useOutletContext();
   const { toast } = useToast();
   const page = useAgriDoctor(currentUser?.uid, userData);
   const [selectedId, setSelectedId] = useState(null);
+
+  // Picker options for the ONE crop a consultation may carry.
+  const cropOptions = useMemo(
+    () => buildCropOptions(userCropData?.crops),
+    [userCropData?.crops]
+  );
 
   const selectedSession = page.sessions.find((s) => s.id === selectedId) ?? null;
   const canAfford = page.balance >= SLOT_COST;
@@ -31,15 +41,16 @@ function AgriDoctorInner() {
   // farmer who books a later slot still sees that booking straight away.
   const consultations = page.activeSessions;
 
-  const handleBook = async (slot, date) => {
-    const res = await page.book(slot, date);
+  const handleBook = async (slot, date, cropOption) => {
+    const res = await page.book(slot, date, cropOption);
     if (res.ok) {
       const startsNow = typeof res.startMs !== "number" || res.startMs <= Date.now();
+      const cropNote = cropOption ? ` Crop: ${cropOption.label}.` : "";
       toast({
         title: "Slot booked",
         description: startsNow
-          ? `Your 2-hour consultation is open now. ${SLOT_COST} credits deducted.`
-          : `Your consultation opens at ${formatClock(res.startMs)}. ${SLOT_COST} credits deducted.`,
+          ? `Your 2-hour consultation is open now.${cropNote} ${SLOT_COST} credits deducted.`
+          : `Your consultation opens at ${formatClock(res.startMs)}.${cropNote} ${SLOT_COST} credits deducted.`,
         variant: "success",
       });
       // Jump straight into the thread only when it is already open; a future
@@ -54,6 +65,26 @@ function AgriDoctorInner() {
     }
   };
 
+  // Attaching the one crop inside a session — permanent, so confirm what was
+  // locked and surface the reason when Firestore/rules refuse the write.
+  const handleAttachCrop = async (session, cropOption) => {
+    const res = await page.attachCrop(session.id, cropOption);
+    if (res.ok) {
+      toast({
+        title: "Crop attached",
+        description: `${cropOption.label} is now locked to this consultation and cannot be changed.`,
+        variant: "success",
+      });
+    } else {
+      toast({
+        title: res.title ?? "Could not attach crop",
+        description: res.description ?? "Please try again.",
+        variant: "error",
+      });
+    }
+    return res;
+  };
+
   // ---- Focused consultation view (fills the pane) --------------------------
   if (selectedSession) {
     return (
@@ -63,6 +94,10 @@ function AgriDoctorInner() {
             session={selectedSession}
             role="user"
             onBack={() => setSelectedId(null)}
+            doctorProfile={page.doctorProfile}
+            cropOptions={cropOptions}
+            attachingCrop={page.attachingCrop}
+            onAttachCrop={handleAttachCrop}
           />
         </div>
       </div>
@@ -88,7 +123,8 @@ function AgriDoctorInner() {
                   </div>
                   <p className="mt-1 text-[13px] leading-5 text-black/60">
                     Book a slot, then share photos, messages or voice notes with a real Agri Doctor
-                    and get an opinion. Each consultation opens a private 2-hour chat window.
+                    and get an opinion. Each consultation opens a private 2-hour chat window and
+                    can be tied to one crop profile.
                   </p>
                 </div>
               </div>
@@ -99,6 +135,9 @@ function AgriDoctorInner() {
         {/* Credits */}
         <CreditBalanceCard balance={page.balance} loading={page.loading} error={page.creditError} />
 
+        {/* Who answers — the doctor's own profile, edited from their console */}
+        <DoctorProfileCard profile={page.doctorProfile} loading={page.loading} />
+
         {/* Booked consultations — upcoming plus open now */}
         {consultations.length > 0 && (
           <section aria-label="Your consultations" className="grid gap-2 min-w-0">
@@ -107,7 +146,12 @@ function AgriDoctorInner() {
               <Badge className="bg-[#679936] text-white">{consultations.length}</Badge>
             </h2>
             {consultations.map((s) => (
-              <SessionCard key={s.id} session={s} onOpen={(sess) => setSelectedId(sess.id)} />
+              <SessionCard
+                key={s.id}
+                session={s}
+                cropOptions={cropOptions}
+                onOpen={(sess) => setSelectedId(sess.id)}
+              />
             ))}
           </section>
         )}
@@ -118,6 +162,7 @@ function AgriDoctorInner() {
           onBook={handleBook}
           bookingKey={page.bookingKey}
           canAfford={canAfford}
+          cropOptions={cropOptions}
         />
 
         {/* History */}
@@ -136,7 +181,12 @@ function AgriDoctorInner() {
             </Card>
           ) : (
             page.historySessions.map((s) => (
-              <SessionCard key={s.id} session={s} onOpen={(sess) => setSelectedId(sess.id)} />
+              <SessionCard
+                key={s.id}
+                session={s}
+                cropOptions={cropOptions}
+                onOpen={(sess) => setSelectedId(sess.id)}
+              />
             ))
           )}
         </section>

@@ -4,7 +4,7 @@ import video1 from "../assets/video1.mp4"
 import background3 from "../assets/background3.png"
 import background1 from "../assets/background1.webp"
 import { DetailsBox } from "../components/section2box";
-import { CalendarDays, Droplet, Send, Sprout } from "lucide-react";
+import { CalendarDays, Droplet, Send, Sprout, Stethoscope } from "lucide-react";
 import { useEffect, useState } from "react";
 import Chatbot from "../components/chatbots";
 import BlogSec from "../components/blogsec";
@@ -91,6 +91,21 @@ export default function Home() {
                 {
                     listHeading: "Estimated Harvest Date:",
                     listText: " Plan labor, storage, and market sales ahead of time with accurate AI maturity forecasts."
+                },
+            ]
+        },
+        {
+            id: 4,
+            title: "Agri Doctor Consultation",
+            icon: <Stethoscope className="w-10 h-10 text-white" />,
+            list: [
+                {
+                    listHeading: "Expert Advice On Demand:",
+                    listText: " Book a private 2-hour slot with a real Agri Doctor for just 5 credits and stop guessing on costly inputs."
+                },
+                {
+                    listHeading: "Photos, Text & Voice Notes:",
+                    listText: " Share your crop’s actual condition in any format and get back a diagnosis and treatment plan."
                 },
             ]
         },

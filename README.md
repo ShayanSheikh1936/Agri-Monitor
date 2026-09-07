@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Pakistan's #1 AI-Powered Agricultural Monitoring Platform</strong><br />
-  Smart crop management, real-time weather intelligence, market rates and AI-driven insights — all in one dashboard.
+  Smart crop management, real-time weather intelligence, market rates, expert Agri Doctor consultations and AI-driven insights — all in one dashboard.
 </p>
 
 <p align="center">
@@ -25,6 +25,7 @@
 
 - [About](#about)
 - [Features](#features)
+- [Agri Doctor](#agri-doctor)
 - [Tech Stack](#tech-stack)
 - [Project Structure](#project-structure)
 - [Getting Started](#getting-started)
@@ -36,7 +37,7 @@
 
 ## About
 
-**Agri Monitor** is a full-featured web application built to help farmers and agronomists manage their crops from sowing to harvest. By simply registering a crop and its sowing date, the platform generates personalised daily tasks, AI-powered recommendations, irrigation schedules, growth timelines, weather alerts and market intelligence — all tailored to the individual field.
+**Agri Monitor** is a full-featured web application built to help farmers and agronomists manage their crops from sowing to harvest. By simply registering a crop and its sowing date, the platform generates personalised daily tasks, AI-powered recommendations, irrigation schedules, growth timelines, weather alerts and market intelligence — all tailored to the individual field. Farmers can also book a private consultation slot and talk directly to a real Agri Doctor.
 
 The platform connects to external AI endpoints for intelligent analysis (crop disease detection from photos, recommendation generation, timeline planning) and stores all user data securely in Firebase (Authentication + Firestore + Realtime Database).
 
@@ -59,6 +60,7 @@ The platform connects to external AI endpoints for intelligent analysis (crop di
 | **Weather Alerts** | Proactive warnings for heavy rain, heatwaves, frost and wind that can affect your crops. |
 | **Disaster Alerts** | Regional disaster feed with impact analysis, maps and safety recommendations. |
 | **Global Market Rates** | World commodity prices from a live market feed with watchlist, price alerts, comparison and AI decision support. |
+| **Agri Doctor** | Book a private 2-hour consultation slot with a real Agri Doctor — text, crop photos and voice notes, paid from a credit wallet. See [Agri Doctor](#agri-doctor). |
 | **AI Chatbot** | Floating assistant on every dashboard page — ask about crop diseases, weather or care, and attach photos for AI analysis. |
 
 ### Public Pages
@@ -69,6 +71,79 @@ The platform connects to external AI endpoints for intelligent analysis (crop di
 - **Blogs** — Agricultural knowledge articles.
 - **Contact Us** — Get in touch form.
 - **Login / Sign Up** — Firebase Authentication with Google sign-in support.
+
+---
+
+## Agri Doctor
+
+**Agri Doctor** is the platform's human-expert layer. Instead of an AI answer, a farmer books a private consultation slot and talks to a real Agri Doctor inside the dashboard.
+
+### How It Works
+
+1. The farmer opens **Dashboard → Expert Consultation → Agri Doctor** and picks one of the fixed daily 2-hour slots (`08:00–10:00` … `18:00–20:00`) for today or the next two days.
+2. Booking costs **5 credits** and reserves one of **3 seats** in that slot. Once all three seats are taken the slot shows **Full**.
+3. The private chat opens **exactly at the slot's own start time** — booking the 11:00 slot at 08:00 shows an *Upcoming* card counting down to 11:00 — and closes automatically 2 hours later.
+4. While the window is open, both sides can send **text, images and voice notes**; every message is stored in Firestore.
+5. When the window ends the consultation moves to **Past consultations** as a read-only thread, so the doctor's advice can be re-read at any time.
+
+### Credits & Lifecycle Rules
+
+| Rule | Behaviour |
+|------|-----------|
+| Free credits | 100 granted once per account on first visit |
+| Cost per slot | 5 credits, deducted atomically inside a Firestore transaction |
+| Slot capacity | 3 farmers per slot, then **Full** |
+| Window length | 2 hours, starting at the slot's own start hour |
+| Attended booking | `closed` → kept in **Past consultations** |
+| No-show booking | `removed` → hidden from the farmer and the seat is released; credits are **not** refunded |
+
+> **Note:** Attendance is recorded the moment the farmer sends their first message. The lifecycle sweep (close attended windows / clear no-shows) runs on page load and every 30 seconds from both the farmer page and the doctor console, so windows still close when nobody is watching. It is overlap-guarded and idempotent.
+
+### Doctor Console
+
+The doctor side is a separate protected route — it is **not** part of the farmer dashboard and shares no layout with it.
+
+| Item | Detail |
+|------|--------|
+| **URL** | `/doctor` |
+| **Gate** | Username + password, defined in `src/doctor/doctorAuth.js` (`DOCTOR_CREDENTIALS`) |
+| **Identity** | Passing the gate also establishes a dedicated Firebase Auth session, which is what the Firestore rules authorise against. On first login the account is auto-provisioned. |
+| **Views** | Queue (live windows first, then upcoming) · Unread · All · Closed · No-shows |
+| **Sign out** | Only signs out when the current Firebase user is the doctor account, so a farmer session is never clobbered |
+
+> **Security note:** the doctor username/password is a UI gate only — it ships inside the client bundle and must not be treated as a secret. Real authorisation is enforced by the `isDoctor()` rule in `firestore.rules`, which matches the signed-in account's email. Keep the two in sync, and use a separate browser profile (or incognito) when testing the doctor console next to a farmer session.
+
+### Required Firestore Rules
+
+`firestore.rules` must be **published** in the Firebase console (Firestore Database → Rules → Publish) before the doctor console can read other users' sessions. This repository has no `firebase.json` / `.firebaserc`, so the rules cannot be deployed from the CLI.
+
+```
+match /agriDoctor/main/credits/{uid}                        → owner only
+match /agriDoctor/main/slots/{slotKey}                      → any signed-in user, or the doctor
+match /agriDoctor/main/sessions/{sessionId}                 → owner or doctor
+match /agriDoctor/main/sessions/{sessionId}/messages/{id}   → owner or doctor
+```
+
+### Data Model
+
+Everything lives under one root collection with a fixed `main` hub document, because a Firestore **collection** path must have an odd number of segments (`agriDoctor/slots` would be a document path and throws *Invalid collection reference*):
+
+```
+agriDoctor/main/credits/{uid}                       # { balance, grantedAt }
+agriDoctor/main/slots/{date}__{slotId}              # { booked }  (capacity 3)
+agriDoctor/main/sessions/{sessionId}                # { userId, date, startMs, endMs, status, unread… }
+agriDoctor/main/sessions/{sessionId}/messages/{id}  # { type, text, mediaData, senderRole, createdAtMs }
+```
+
+| Field | Purpose |
+|-------|---------|
+| `startMs` / `endMs` | Local epoch-ms window bounds. The composer is locked before `startMs` and read-only after `endMs`. |
+| `bookedAtMs` | Numeric booking stamp — ordering never relies on `serverTimestamp()`, so no composite indexes are needed. |
+| `status` | `active` → `closed` (attended) or `removed` (no-show) |
+| `userAttended` | Set on the farmer's first message; decides closed vs removed |
+| `unreadForUser` / `unreadForDoctor` | Per-viewer unread counters, cleared on open |
+
+> Images and voice notes are compressed client-side (`browser-image-compression`, `MediaRecorder`) and stored inline as base64 to stay under Firestore's 1 MB per-document limit.
 
 ---
 
@@ -113,7 +188,9 @@ agrimonitor/
 │   │   ├── timeline/        # Crop timeline sub-components
 │   │   ├── weather/         # Weather forecast sub-components
 │   │   ├── disasteralerts/  # Disaster alert sub-components
+│   │   ├── agridoctor/      # Agri Doctor sub-components (farmer side)
 │   │   └── ...              # Other dashboard pages
+│   ├── doctor/              # Doctor console — separate protected /doctor route
 │   ├── features/            # Auth context, protected routes
 │   ├── lib/                 # Utility functions & helpers
 │   ├── pages/               # Public pages (home, login, services, etc.)
@@ -121,6 +198,7 @@ agrimonitor/
 │   └── styles/              # Global CSS & shadcn theme
 ├── .env.example             # Environment variable template
 ├── .env.production          # Production env values (committed)
+├── firestore.rules          # Firestore security rules (must be published manually)
 ├── netlify.toml             # Netlify build & redirect config
 ├── vite.config.js           # Vite configuration
 └── package.json

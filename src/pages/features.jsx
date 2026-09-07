@@ -15,6 +15,7 @@ import {
   BarChart3,
   Brain,
   CheckCircle2,
+  Stethoscope,
 } from "lucide-react";
 
 /* ─── data ─── */
@@ -58,6 +59,11 @@ const features = [
     icon: CalendarClock,
     title: "Harvest Countdown",
     desc: "Real-time stage monitoring with a countdown to your estimated harvest window.",
+  },
+  {
+    icon: Stethoscope,
+    title: "Agri Doctor Consultation",
+    desc: "Book a private 2-hour slot with a real Agri Doctor — share photos, messages or voice notes and get an expert opinion.",
   },
 ];
 
@@ -116,6 +122,17 @@ const spotlights = [
       "Dynamic harvest date prediction",
       "Yield estimation based on growth data",
       "Post-harvest insights for next season planning",
+    ],
+  },
+  {
+    img: "https://images.unsplash.com/photo-1709532388333-acf472eae61a?w=800&q=80",
+    title: "Agri Doctor Consultation",
+    tagline: "A real crop expert, one booking away.",
+    points: [
+      "Fixed 2-hour slots shared by up to 3 farmers",
+      "100 free credits — every consultation costs just 5",
+      "Send text, crop photos and voice notes privately",
+      "Chat opens exactly at your slot time, then closes on its own",
     ],
   },
 ];
@@ -201,9 +218,10 @@ export default function Features() {
   const [spot1Ref, spot1Visible] = useInView();
   const [spot2Ref, spot2Visible] = useInView();
   const [spot3Ref, spot3Visible] = useInView();
+  const [spot4Ref, spot4Visible] = useInView();
   const [ctaRef, ctaVisible] = useInView();
-  const spotlightRefs = [spot1Ref, spot2Ref, spot3Ref];
-  const spotlightVisible = [spot1Visible, spot2Visible, spot3Visible];
+  const spotlightRefs = [spot1Ref, spot2Ref, spot3Ref, spot4Ref];
+  const spotlightVisible = [spot1Visible, spot2Visible, spot3Visible, spot4Visible];
 
   return (
     <div className="w-full overflow-x-hidden bg-white text-black" style={{ fontFamily: "var(--sans)" }}>
@@ -232,7 +250,7 @@ export default function Features() {
           className="relative z-10 mx-auto"
           style={{ fontSize: "1.15rem", maxWidth: "600px", opacity: 0.9, lineHeight: 1.7 }}
         >
-          Discover eight powerful AI-driven tools that monitor, predict, and optimize every stage of your crop — from seed to market.
+          Discover nine powerful AI-driven tools that monitor, predict, and optimize every stage of your crop — from seed to market.
         </p>
       </section>
 
@@ -252,7 +270,7 @@ export default function Features() {
             What We Offer
           </span>
           <h2 className="bebas-neue-regular text-5xl md:text-6xl" style={{ color: "#000" }}>
-            Eight Tools. One Platform.
+            Nine Tools. One Platform.
           </h2>
         </div>
 

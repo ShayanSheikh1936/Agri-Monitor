@@ -1,8 +1,10 @@
 import { useState } from "react";
-import { CalendarClock, Users } from "lucide-react";
+import { CalendarClock, Sprout, Users } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Select, SelectItem } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { SLOT_CAPACITY, SLOT_COST } from "@/services/agriDoctorService";
+import { NO_CROP, findCropOption } from "./agriDoctorCrop";
 import { cn } from "@/lib/utils";
 
 // Day-tabbed slot grid. Each fixed 2-hour slot shows live occupancy (x/3) and
@@ -11,9 +13,23 @@ import { cn } from "@/lib/utils";
 // others simply wait out the in-flight request. Booking itself is handled by the
 // parent (useAgriDoctor.book) inside a Firestore transaction, so two farmers can
 // never take the same last seat.
-export default function SlotPicker({ slotGrid, onBook, bookingKey = null, canAfford = true }) {
+//
+// The crop selector above the grid is OPTIONAL and applies to whichever slot is
+// booked next: one consultation carries at most one crop profile, and that
+// choice is locked for good once the session exists (see SessionCropBar).
+export default function SlotPicker({
+  slotGrid,
+  onBook,
+  bookingKey = null,
+  canAfford = true,
+  cropOptions = [],
+}) {
   const [day, setDay] = useState(slotGrid[0]?.date ?? "");
+  const [cropKey, setCropKey] = useState(NO_CROP);
   const activeDay = slotGrid.some((d) => d.date === day) ? day : slotGrid[0]?.date ?? "";
+  // Resolved at click time so the booking always carries the CURRENT profile
+  // (name/sowing date/health), not a stale copy captured when it was selected.
+  const chosenCrop = findCropOption(cropOptions, cropKey);
 
   return (
     <Card className="min-w-0">
@@ -34,6 +50,36 @@ export default function SlotPicker({ slotGrid, onBook, bookingKey = null, canAff
             You don&apos;t have enough credits to book a slot ({SLOT_COST} needed).
           </p>
         )}
+
+        {/* Optional crop profile — ONE per consultation, locked after booking */}
+        <div className="grid gap-1.5 rounded-2xl border border-[var(--border)] bg-[#F2DEC4]/40 p-3">
+          <label
+            htmlFor="slot-crop"
+            className="flex items-center gap-1.5 text-[12px] font-bold text-black/70"
+          >
+            <Sprout size={14} className="text-[#4a7028]" aria-hidden="true" />
+            Crop profile for this consultation
+            <span className="font-semibold text-black/40">(optional)</span>
+          </label>
+          <Select
+            id="slot-crop"
+            value={cropKey}
+            onChange={(e) => setCropKey(e.target.value)}
+            disabled={bookingKey !== null}
+          >
+            <SelectItem value={NO_CROP}>No crop profile</SelectItem>
+            {cropOptions.map((o) => (
+              <SelectItem key={o.key} value={o.key}>
+                {o.sublabel ? `${o.label} — ${o.sublabel}` : o.label}
+              </SelectItem>
+            ))}
+          </Select>
+          <p className="text-[11px] leading-4 text-black/50">
+            {cropOptions.length === 0
+              ? "You have no crop profiles yet. You can still book — add a crop from the dashboard later."
+              : "Only one crop can be attached to a consultation, and it cannot be changed afterwards. You can also skip this and attach it inside the session."}
+          </p>
+        </div>
 
         <Tabs value={activeDay} onValueChange={setDay}>
           <TabsList>
@@ -78,7 +124,7 @@ export default function SlotPicker({ slotGrid, onBook, bookingKey = null, canAff
                       <button
                         type="button"
                         disabled={disabled}
-                        onClick={() => onBook(slot, d.date)}
+                        onClick={() => onBook(slot, d.date, chosenCrop)}
                         className={cn(
                           "rounded-xl px-3 py-2 text-[13px] font-semibold transition-colors",
                           unavailable

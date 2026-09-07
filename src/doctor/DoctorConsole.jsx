@@ -7,6 +7,8 @@ import {
   Clock,
   MessageSquare,
   AlertTriangle,
+  Sprout,
+  UserRound,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -20,9 +22,11 @@ import {
   formatStamp,
 } from "@/dashboard/agridoctor/agriDoctorSlots";
 import { sessionStateMeta } from "@/dashboard/agridoctor/agriDoctorMeta";
+import { cropDisplayName } from "@/dashboard/agridoctor/agriDoctorCrop";
 import useCountdown from "@/dashboard/agridoctor/useCountdown";
 import { cn } from "@/lib/utils";
 import useDoctorConsole, { DOCTOR_FILTERS } from "./useDoctorConsole";
+import DoctorProfileEditor from "./DoctorProfileEditor";
 
 // One row in the doctor's triage list. Module-scope (not exported) so the file
 // keeps a single default component export for fast-refresh.
@@ -87,6 +91,15 @@ function DoctorSessionItem({ session, selected, onSelect }) {
         )}
       </div>
 
+      {session.cropKey ? (
+        <span className="flex min-w-0 items-center gap-1 text-[11px] font-semibold text-[#4a7028]">
+          <Sprout size={11} className="shrink-0" aria-hidden="true" />
+          {/* From the snapshot the farmer attached — the doctor has no access
+              to crops/{uid}, so this is the only crop context available. */}
+          <span className="truncate">{cropDisplayName(session, [])}</span>
+        </span>
+      ) : null}
+
       {session.lastMessagePreview ? (
         <p className="flex items-center gap-1 truncate text-[12px] text-black/60">
           <MessageSquare size={12} aria-hidden="true" /> {session.lastMessagePreview}
@@ -117,6 +130,7 @@ const FILTER_TABS = [
 export default function DoctorConsole({ onSignOut }) {
   const store = useDoctorConsole();
   const [selectedId, setSelectedId] = useState(null);
+  const [profileOpen, setProfileOpen] = useState(false);
 
   const selectedSession = store.sessions.find((s) => s.id === selectedId) ?? null;
 
@@ -138,7 +152,13 @@ export default function DoctorConsole({ onSignOut }) {
           </span>
           <div className="min-w-0">
             <h1 className="truncate text-[15px] font-bold leading-5">Agri Doctor Console</h1>
-            <p className="truncate text-[11px] text-white/70">Farmer consultations &amp; opinions</p>
+            <p className="truncate text-[11px] text-white/70">
+              {/* JS string — no HTML entities here, they would render literally. */}
+              {store.doctorProfile?.displayName || "Farmer consultations and opinions"}
+              {store.doctorProfile?.specialization
+                ? ` · ${store.doctorProfile.specialization}`
+                : ""}
+            </p>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -147,6 +167,13 @@ export default function DoctorConsole({ onSignOut }) {
               {store.totalUnread} unread
             </span>
           )}
+          <button
+            type="button"
+            onClick={() => setProfileOpen(true)}
+            className="flex items-center gap-1.5 rounded-xl bg-white/15 px-3 py-1.5 text-[13px] font-semibold transition-colors hover:bg-white/25 cursor-pointer"
+          >
+            <UserRound size={15} aria-hidden="true" /> My profile
+          </button>
           <button
             type="button"
             onClick={onSignOut}
@@ -235,6 +262,7 @@ export default function DoctorConsole({ onSignOut }) {
                 session={selectedSession}
                 role={ROLES.DOCTOR}
                 onBack={() => setSelectedId(null)}
+                doctorProfile={store.doctorProfile}
               />
             </div>
           ) : (
@@ -253,6 +281,16 @@ export default function DoctorConsole({ onSignOut }) {
           )}
         </section>
       </div>
+
+      {/* Public profile farmers see before they book */}
+      <DoctorProfileEditor
+        open={profileOpen}
+        onOpenChange={setProfileOpen}
+        profile={store.doctorProfile}
+        onSave={store.updateProfile}
+        saving={store.savingProfile}
+        error={store.profileError}
+      />
     </div>
   );
 }

@@ -49,6 +49,16 @@ service cloud.firestore {
            == request.auth.uid;
     }
 
+    // ONE crop profile per consultation, chosen once and never changed.
+    // While cropKey is still null the owner may set it; once set it must come
+    // back unchanged. (Firestore merges updates, so request.resource.data
+    // always carries the full post-write document — an update that never
+    // touches cropKey therefore satisfies this automatically.)
+    function cropLockRespected() {
+      return resource.data.cropKey == null
+        || request.resource.data.cropKey == resource.data.cropKey;
+    }
+
     // User profile document (personal info, display photo).
     match /users/{uid} {
       allow read, write: if isOwner(uid);
@@ -82,6 +92,7 @@ service cloud.firestore {
 
     // =========================================================================
     // Agri Doctor — consultation feature (collection root `agriDoctor`).
+    //   agriDoctor/main                                     -> doctor's public profile
     //   agriDoctor/main/credits/{uid}                       -> farmer credit balance
     //   agriDoctor/main/slots/{slotKey}                     -> shared slot occupancy
     //   agriDoctor/main/sessions/{sessionId}                -> one consultation
@@ -89,6 +100,16 @@ service cloud.firestore {
     // Farmers are scoped to their OWN records; the doctor account (isDoctor())
     // can read/write all of them so it can review photos and send an opinion.
     // =========================================================================
+
+    // Hub document — holds the doctor's PUBLIC profile (name, qualification,
+    // specialisation, languages). Every signed-in farmer reads it so the
+    // console edit appears live; only the doctor account may write it.
+    // Note: the doctor still gets NO access to crops/{uid} — the crop context
+    // it needs is snapshotted onto the session doc by the farmer's client.
+    match /agriDoctor/main {
+      allow read: if isSignedIn() || isDoctor();
+      allow write: if isDoctor();
+    }
 
     // Credit balance — owner only (the doctor does not need it).
     match /agriDoctor/main/credits/{uid} {
@@ -107,9 +128,14 @@ service cloud.firestore {
       // A farmer may create a session only for themselves.
       allow create: if isSignedIn()
         && request.resource.data.userId == request.auth.uid;
-      // Owner (or doctor) may read/update/delete the session.
-      allow read, update, delete: if isDoctor()
+      // Owner (or doctor) may read/delete the session.
+      allow read, delete: if isDoctor()
         || (isSignedIn() && resource.data.userId == request.auth.uid);
+      // Owner updates must respect the one-crop lock; the doctor is exempt
+      // (it never attaches a crop, but it does clear unread counters).
+      allow update: if isDoctor()
+        || (isSignedIn() && resource.data.userId == request.auth.uid
+            && cropLockRespected());
 
       match /messages/{messageId} {
         // Read the thread of your own session; the doctor reads all.

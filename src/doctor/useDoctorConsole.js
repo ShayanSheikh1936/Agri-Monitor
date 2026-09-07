@@ -9,8 +9,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   subscribeAllSessions,
+  subscribeDoctorProfile,
+  saveDoctorProfile,
   sweepSessions,
   SESSION_STATUS,
+  DEFAULT_DOCTOR_PROFILE,
 } from "@/services/agriDoctorService";
 import { isWindowOpen, isUpcoming } from "@/dashboard/agridoctor/agriDoctorSlots";
 
@@ -29,6 +32,10 @@ export default function useDoctorConsole() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState(DOCTOR_FILTERS.OPEN);
+  // The doctor's own public profile — what farmers see before they book.
+  const [doctorProfile, setDoctorProfile] = useState(DEFAULT_DOCTOR_PROFILE);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileError, setProfileError] = useState("");
 
   const mountedRef = useRef(true);
   const sweepingRef = useRef(false);
@@ -63,6 +70,35 @@ export default function useDoctorConsole() {
       }
     );
     return () => unsub();
+  }, []);
+
+  // ---- The doctor's public profile (editable here, live for farmers) --------
+  useEffect(() => {
+    const unsub = subscribeDoctorProfile((profile) => {
+      if (mountedRef.current) setDoctorProfile(profile);
+    });
+    return () => unsub();
+  }, []);
+
+  const updateProfile = useCallback(async (draft) => {
+    setSavingProfile(true);
+    setProfileError("");
+    try {
+      const saved = await saveDoctorProfile(draft);
+      return { ok: true, profile: saved };
+    } catch (err) {
+      console.error("doctorConsole: profile save failed:", err);
+      // permission-denied here means the agriDoctor/main write rule (isDoctor)
+      // is not published yet — the profile stays at its local default.
+      setProfileError(
+        err?.code === "permission-denied"
+          ? "Access denied — publish the doctor Firestore rules, then try again."
+          : "Could not save your profile. Please try again."
+      );
+      return { ok: false };
+    } finally {
+      setSavingProfile(false);
+    }
   }, []);
 
   // ---- Lifecycle sweep (close attended / remove no-shows) ------------------
@@ -166,5 +202,9 @@ export default function useDoctorConsole() {
     closedSessions,
     removedSessions,
     totalUnread,
+    doctorProfile,
+    updateProfile,
+    savingProfile,
+    profileError,
   };
 }

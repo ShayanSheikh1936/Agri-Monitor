@@ -1,7 +1,8 @@
-import { Clock, MessageSquare, ChevronRight } from "lucide-react";
+import { Clock, MessageSquare, ChevronRight, Sprout } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { SESSION_STATUS } from "@/services/agriDoctorService";
 import { sessionStateMeta } from "./agriDoctorMeta";
+import { cropDisplayName } from "./agriDoctorCrop";
 import {
   isWindowOpen,
   isUpcoming,
@@ -16,7 +17,9 @@ import { cn } from "@/lib/utils";
 // No-show ("removed") sessions are filtered out upstream, so this renders ACTIVE
 // bookings — either UPCOMING (slot has not started, counts down to its start) or
 // OPEN (counts down to the 2-hour close) — plus CLOSED read-only history.
-export default function SessionCard({ session, onOpen }) {
+// The attached crop (at most one, permanently locked) is echoed here so the
+// farmer can tell two same-day bookings apart without opening them.
+export default function SessionCard({ session, cropOptions = [], onOpen }) {
   const isActive = session.status === SESSION_STATUS.ACTIVE;
   // Recomputed on every countdown tick, so the card flips from "Starts in" to
   // "Closes in" the moment the slot's own start time arrives.
@@ -65,6 +68,13 @@ export default function SessionCard({ session, onOpen }) {
           <span>Closed {formatStamp(session.closedAt)}</span>
         ) : null}
       </div>
+
+      {session.cropKey ? (
+        <span className="flex min-w-0 items-center gap-1 text-[12px] font-semibold text-[#4a7028]">
+          <Sprout size={12} className="shrink-0" aria-hidden="true" />
+          <span className="truncate">{cropDisplayName(session, cropOptions)}</span>
+        </span>
+      ) : null}
 
       {session.lastMessagePreview ? (
         <p className="flex items-center gap-1 truncate text-[12px] text-black/60">

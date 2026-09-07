@@ -14,13 +14,28 @@ import { sessionStateMeta } from "./agriDoctorMeta";
 import useCountdown from "./useCountdown";
 import MessageBubble from "./MessageBubble";
 import ChatComposer from "./ChatComposer";
+import SessionCropBar from "./SessionCropBar";
+import CropContextPanel from "./CropContextPanel";
 
 // The consultation thread. Shared by the farmer page (role="user") and the
 // doctor console (role="doctor"): it subscribes to the message subcollection,
 // keeps the viewer's unread counter cleared, auto-scrolls, and gates sending on
 // the live 2-hour window. Closing/expiry is driven by data, never by a timer
 // left running here.
-export default function ConsultationChat({ session, role, onBack, onSent }) {
+//
+// The strip under the header is role-specific: the farmer gets the ONE-crop
+// picker/lock (cropOptions + onAttachCrop), the doctor gets the read-only crop
+// snapshot the farmer attached.
+export default function ConsultationChat({
+  session,
+  role,
+  onBack,
+  onSent,
+  doctorProfile = null,
+  cropOptions = [],
+  attachingCrop = false,
+  onAttachCrop,
+}) {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const scrollRef = useRef(null);
@@ -66,7 +81,11 @@ export default function ConsultationChat({ session, role, onBack, onSent }) {
       sessionId: session.id,
       senderRole: role,
       senderId: isDoctor ? "doctor" : session.userId,
-      senderName: isDoctor ? "Agri Doctor" : session.userName || "Farmer",
+      // The doctor's own display name (set in the console) so the farmer sees
+      // who actually replied, falling back to the generic label.
+      senderName: isDoctor
+        ? doctorProfile?.displayName || "Agri Doctor"
+        : session.userName || "Farmer",
       ...payload,
     });
     onSent?.();
@@ -105,10 +124,19 @@ export default function ConsultationChat({ session, role, onBack, onSent }) {
 
         <div className="min-w-0 flex-1">
           <p className="truncate text-[14px] font-bold text-black">
-            {isDoctor ? session?.userName || "Farmer" : "Agri Doctor"}
+            {isDoctor
+              ? session?.userName || "Farmer"
+              : doctorProfile?.displayName || "Agri Doctor"}
           </p>
           <p className="truncate text-[11px] text-black/55">
-            {formatDayLabel(session?.date)} · {session?.slotLabel}
+            {isDoctor
+              ? `${formatDayLabel(session?.date)} · ${session?.slotLabel}`
+              : [
+                  doctorProfile?.specialization,
+                  `${formatDayLabel(session?.date)} · ${session?.slotLabel}`,
+                ]
+                  .filter(Boolean)
+                  .join(" — ")}
           </p>
         </div>
 
@@ -124,6 +152,18 @@ export default function ConsultationChat({ session, role, onBack, onSent }) {
           <Badge className={status.className}>{status.label}</Badge>
         )}
       </div>
+
+      {/* The ONE crop profile tied to this consultation */}
+      {isDoctor ? (
+        <CropContextPanel session={session} />
+      ) : (
+        <SessionCropBar
+          session={session}
+          cropOptions={cropOptions}
+          attaching={attachingCrop}
+          onAttach={onAttachCrop}
+        />
+      )}
 
       {/* Messages */}
       <div

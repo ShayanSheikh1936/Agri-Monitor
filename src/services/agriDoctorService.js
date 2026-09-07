@@ -9,6 +9,7 @@
 //    (Firestore paths alternate collection/document, so a root-level
 //    `agriDoctor/slots` would be a 2-segment DOC path, not a collection —
 //    the `main` hub keeps every subcollection at a valid odd segment count.)
+//        agriDoctor/main                                     -> hub doc (doctor profile)
 //        agriDoctor/main/credits/{uid}                       -> credit balance
 //        agriDoctor/main/slots/{slotKey}                     -> per-slot occupancy
 //        agriDoctor/main/sessions/{sessionId}                -> one booked consult
@@ -22,6 +23,12 @@
 //  - The 2-hour window is enforced by data (endMs) + a sweep, never by leaving
 //    a listener running: any client that loads the page reconciles elapsed
 //    sessions (close attended ones, remove no-shows). Idempotent.
+//  - A consultation is tied to AT MOST ONE crop profile, chosen by the farmer
+//    either while booking or once inside the session, and PERMANENTLY LOCKED
+//    after that. The rules grant the doctor no access to crops/{uid}, so the
+//    chosen profile is SNAPSHOTTED onto the session doc — the doctor reads the
+//    snapshot and never the crop collection. Base64 crop images are excluded
+//    from the snapshot to stay well under the 1 MB per-document limit.
 // =============================================================================
 
 import {
@@ -106,6 +113,27 @@ export const BOOKING_ERRORS = {
   UNKNOWN: "unknown",
 };
 
+/** Typed failure reasons for the one-crop-per-consultation lock. */
+export const CROP_ERRORS = {
+  ALREADY_LOCKED: "crop_already_locked", // this session already has its one crop
+  NOT_FOUND: "session_not_found",
+  INVALID: "invalid_crop",
+};
+
+/**
+ * Fallback doctor profile, shown until the doctor saves their own from the
+ * console. Stored on the hub doc (agriDoctor/main -> doctorProfile), which
+ * needs no extra collection because a 2-segment path is already a document.
+ */
+export const DEFAULT_DOCTOR_PROFILE = {
+  displayName: "Agri Doctor",
+  qualification: "",
+  specialization: "",
+  experienceYears: null,
+  languages: "",
+  bio: "",
+};
+
 /**
  * Local-time start/end (epoch ms) of a scheduled slot window.
  *
@@ -152,6 +180,9 @@ const messagesCol = (sessionId) =>
 const creditRef = (uid) => doc(creditsCol(), uid);
 const slotRef = (slotKey) => doc(slotsCol(), slotKey);
 const sessionRef = (sessionId) => doc(sessionsCol(), sessionId);
+// The hub doc itself (agriDoctor/main) — a 2-segment DOCUMENT path that stores
+// the doctor's public profile. Parents the subcollections above.
+const hubRef = () => doc(fdb, AGRI_DOCTOR.root, AGRI_DOCTOR.hub);
 
 // Firestore rejects `undefined` — strip it recursively before any write.
 function stripUndefined(value) {
@@ -203,6 +234,13 @@ function normalizeSession(d) {
   data.unreadForDoctor = Number.isFinite(data.unreadForDoctor) ? data.unreadForDoctor : 0;
   data.unreadForUser = Number.isFinite(data.unreadForUser) ? data.unreadForUser : 0;
   data.userAttended = data.userAttended === true;
+  // At most ONE crop profile per consultation, locked once chosen. Absent on
+  // sessions created before this feature existed -> normalised to null so the
+  // "not chosen yet" branch (and the Firestore crop-lock rule) behave the same.
+  data.cropKey = typeof data.cropKey === "string" && data.cropKey ? data.cropKey : null;
+  data.cropSnapshot =
+    data.cropSnapshot && typeof data.cropSnapshot === "object" ? data.cropSnapshot : null;
+  data.cropAttachedAtMs = toEpochMs(data.cropAttachedAtMs);
   return data;
 }
 
@@ -329,10 +367,14 @@ export function subscribeMessages(sessionId, onChange) {
  * Books a slot for the farmer. Runs entirely in a transaction so the seat count
  * and the credit balance can never drift under concurrent writes.
  *
+ * `crop` is OPTIONAL ({ cropKey, snapshot }): when supplied the session is born
+ * with its one-and-only crop already locked; when omitted the farmer can still
+ * attach one later inside the session via attachCropToSession().
+ *
  * @returns {Promise<{sessionId:string}>}
  * @throws {{code:string}} one of BOOKING_ERRORS.
  */
-export async function bookSlot({ uid, user, slot, date, slotKey, nowMs = Date.now() }) {
+export async function bookSlot({ uid, user, slot, date, slotKey, crop = null, nowMs = Date.now() }) {
   assertUid(uid);
   if (!slot || !date || !slotKey) {
     throw { code: BOOKING_ERRORS.UNKNOWN, message: "A slot and date are required." };
@@ -379,6 +421,11 @@ export async function bookSlot({ uid, user, slot, date, slotKey, nowMs = Date.no
         startHour: slot.startHour,
         date,
         slotKey,
+        // Optional crop attachment — locked from birth when chosen at booking
+        // time, otherwise null so it can still be picked inside the session.
+        cropKey: crop?.cropKey ?? null,
+        cropSnapshot: crop?.cropKey ? (crop?.snapshot ?? null) : null,
+        cropAttachedAtMs: crop?.cropKey ? nowMs : null,
         bookedAtMs: nowMs,
         startMs,
         endMs,
@@ -416,6 +463,105 @@ export async function bookSlot({ uid, user, slot, date, slotKey, nowMs = Date.no
   }
 
   return { sessionId: newSessionRef.id };
+}
+
+// -----------------------------------------------------------------------------
+// Crop attachment — ONE crop per consultation, permanently locked
+// -----------------------------------------------------------------------------
+
+/**
+ * Attaches a crop profile to an existing session.
+ *
+ * The choice is PERMANENT: the transaction reads the session first and refuses
+ * when a crop is already attached, so a double-click or a second browser tab can
+ * never swap it. firestore.rules enforces the same invariant server-side
+ * (cropLockRespected), so this client check is not the only line of defence.
+ *
+ * The snapshot — not the crop doc — is what the doctor reads, because the rules
+ * give the doctor no access to crops/{uid}.
+ *
+ * @throws {{code:string}} one of CROP_ERRORS.
+ */
+export async function attachCropToSession({ sessionId, cropKey, snapshot, nowMs = Date.now() }) {
+  if (!sessionId) {
+    throw { code: CROP_ERRORS.INVALID, message: "attachCropToSession: sessionId is required." };
+  }
+  if (!cropKey || typeof cropKey !== "string") {
+    throw { code: CROP_ERRORS.INVALID, message: "A crop profile must be selected." };
+  }
+
+  const ref = sessionRef(sessionId);
+  try {
+    await runTransaction(fdb, async (tx) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists()) throw { code: CROP_ERRORS.NOT_FOUND };
+      // Already tied to a crop -> locked for good, no overwrite.
+      if (snap.data().cropKey) throw { code: CROP_ERRORS.ALREADY_LOCKED };
+      tx.update(ref, stripUndefined({
+        cropKey,
+        cropSnapshot: snapshot ?? null,
+        cropAttachedAtMs: nowMs,
+        updatedAt: serverTimestamp(),
+      }));
+    });
+  } catch (err) {
+    if (err && err.code) throw err;
+    console.error("agriDoctor: crop attach failed:", err);
+    throw { code: CROP_ERRORS.INVALID, message: err?.message ?? "Could not attach the crop." };
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Doctor profile — stored on the hub doc (agriDoctor/main)
+// -----------------------------------------------------------------------------
+
+// Tolerates a missing/partial profile doc and never returns undefined fields,
+// so the UI can render it directly without guards.
+function normalizeDoctorProfile(raw) {
+  const p = raw && typeof raw === "object" ? raw : {};
+  const years = p.experienceYears;
+  return {
+    displayName:
+      typeof p.displayName === "string" && p.displayName.trim()
+        ? p.displayName.trim()
+        : DEFAULT_DOCTOR_PROFILE.displayName,
+    qualification: typeof p.qualification === "string" ? p.qualification : "",
+    specialization: typeof p.specialization === "string" ? p.specialization : "",
+    experienceYears:
+      years === null || years === "" || !Number.isFinite(Number(years)) ? null : Number(years),
+    languages: typeof p.languages === "string" ? p.languages : "",
+    bio: typeof p.bio === "string" ? p.bio : "",
+  };
+}
+
+/**
+ * Live doctor profile. Farmers watch it so an edit made in the doctor console
+ * appears without a refresh; any failure (including unpublished rules) falls
+ * back to the defaults instead of breaking the page.
+ */
+export function subscribeDoctorProfile(onChange) {
+  return onSnapshot(
+    hubRef(),
+    (snap) => onChange(normalizeDoctorProfile(snap.exists() ? snap.data()?.doctorProfile : null)),
+    (err) => {
+      console.error("agriDoctor: profile subscription failed:", err);
+      onChange(normalizeDoctorProfile(null));
+    }
+  );
+}
+
+/**
+ * Saves the doctor's public profile (doctor-only in firestore.rules). Merged
+ * onto the hub doc, so the subcollections it parents are never touched.
+ */
+export async function saveDoctorProfile(profile) {
+  const clean = normalizeDoctorProfile(profile);
+  await setDoc(
+    hubRef(),
+    { doctorProfile: stripUndefined(clean), updatedAt: serverTimestamp() },
+    { merge: true }
+  );
+  return clean;
 }
 
 // -----------------------------------------------------------------------------
