@@ -27,5 +27,4 @@ media-original/
 *.sln
 *.sw?
 *.env
-.env.production
-.env.local
+
