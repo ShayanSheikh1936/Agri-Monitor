@@ -171,7 +171,7 @@ export default function Routers() {
                                     <MarketplacePage />
                                 </Suspense>
                             ),
-                        },{
+                        }, {
                             path: "/dashboard/disasteralerts",
                             errorElement: PageError,
                             element: (
@@ -179,7 +179,7 @@ export default function Routers() {
                                     <DisasterAlertsPage />
                                 </Suspense>
                             ),
-                        },{
+                        }, {
                             path: "/dashboard/croptimeline",
                             errorElement: PageError,
                             element: (
@@ -187,7 +187,7 @@ export default function Routers() {
                                     <CropTimelinePage />
                                 </Suspense>
                             ),
-                        },{
+                        }, {
                             path: "/dashboard/agridoctor",
                             errorElement: PageError,
                             element: (

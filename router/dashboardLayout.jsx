@@ -1,4 +1,4 @@
-import { MenuIcon, Plus } from "lucide-react";
+import { Crown, MenuIcon, Plus } from "lucide-react";
 import { NavLink, Outlet, useNavigate, Link } from "react-router-dom";
 import { useEffect, useLayoutEffect, useState } from "react";
 import { createPortal } from "react-dom";
@@ -103,95 +103,104 @@ export default function DashboardLayout() {
               <h1 className="text-4xl text-[var(--text1)]  [-webkit-text-stroke:0.4px_black] font-bold bebas-neue-regular">AGRI MONITOR</h1>
             </Link>
             <div className="flex gap-2 items-center">
-            <Link to="/dashboard/addnewcrop" className="px-2 py-3 bg-[var(--text1)]  w-fit rounded-2xl flex gap-2 items-center transition-colors hover:bg-[#4a7028]">
-              <Plus size={30} />
-              <p>Add New</p>
-            </Link>
-            {/* Here is user crop data */}
-            <div className="max-w-[180px] w-[100%] h-full flex items-center gap-2 overflow-x-auto scrollbar-none rounded-2xl">
-              {userCropData?.crops?.length > 0 ? (
-                userCropData.crops.map((crop, index) => (
-                  <button
-                    key={index}
-                    onClick={() => {
-                      setTooltip(null);
-                      setCropToDelete(crop);
-                      setCropDeleteIndex(index);
-                    }}
-                    className="shrink-0 w-10 h-10 rounded-full overflow-hidden border-2 border-[var(--text1)] hover:border-[#4a7028] transition-colors cursor-pointer bg-[var(--text1)]/20"
-                    onMouseEnter={(e) => {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      setTooltip({ name: crop.CropName || `Crop ${index + 1}`, x: rect.left + rect.width / 2, y: rect.bottom + 6 });
-                    }}
-                    onMouseLeave={() => setTooltip(null)}
-                  >
-                    {crop.cropImage ? (
-                      <img src={crop.cropImage} alt={crop.CropName} className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="flex items-center justify-center w-full h-full text-xs font-bold text-[var(--text1)]">
-                        {(crop.CropName || "C").charAt(0).toUpperCase()}
-                      </span>
-                    )}
-                  </button>
-                ))
-              ) : (
-                <p className="text-xs text-gray-500 pl-2">No crops added yet</p>
-              )}
-            </div>
-            {tooltip && createPortal(
-              <span
-                className="uppercase absolute px-2 py-1 text-[10px] font-semibold text-white bg-[var(--text1)] rounded-md whitespace-nowrap pointer-events-none z-[9999]"
-                style={{ left: tooltip.x, top: tooltip.y, transform: 'translateX(-50%)' }}
-              >
-                {tooltip.name}
-              </span>,
-              document.body
-            )}
-            {/* Delete Crop Confirmation Popup */}
-            {cropToDelete && createPortal(
-              <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-[rgba(0,0,0,0.5)]" onClick={() => !deleting && setCropToDelete(null)}>
-                <div
-                  className="bg-[var(--bg)] rounded-2xl shadow-2xl border-2 border-[var(--text1)] p-6 max-w-[320px] w-[90%] flex flex-col gap-4"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="w-12 h-12 rounded-full overflow-hidden border-2 border-[var(--text1)] bg-[var(--text1)]/20 shrink-0">
-                      {cropToDelete.cropImage ? (
-                        <img src={cropToDelete.cropImage} alt={cropToDelete.CropName} className="w-full h-full object-cover" />
+              <Link to="/dashboard/addnewcrop" className="px-2 py-3 bg-[var(--text1)]  w-fit rounded-2xl flex gap-2 items-center transition-colors hover:bg-[#4a7028]">
+                <Plus size={30} />
+                <p>Add New</p>
+              </Link>
+              {/* Here is user crop data */}
+              <div className="max-w-[180px] w-[100%] h-full flex items-center gap-2 overflow-x-auto scrollbar-none rounded-2xl">
+                {userCropData?.crops?.length > 0 ? (
+                  userCropData.crops.map((crop, index) => (
+                    <button
+                      key={index}
+                      onClick={() => {
+                        setTooltip(null);
+                        setCropToDelete(crop);
+                        setCropDeleteIndex(index);
+                      }}
+                      className="shrink-0 w-10 h-10 rounded-full overflow-hidden border-2 border-[var(--text1)] hover:border-[#4a7028] transition-colors cursor-pointer bg-[var(--text1)]/20"
+                      onMouseEnter={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setTooltip({ name: crop.CropName || `Crop ${index + 1}`, x: rect.left + rect.width / 2, y: rect.bottom + 6 });
+                      }}
+                      onMouseLeave={() => setTooltip(null)}
+                    >
+                      {crop.cropImage ? (
+                        <img src={crop.cropImage} alt={crop.CropName} className="w-full h-full object-cover" />
                       ) : (
-                        <span className="flex items-center justify-center w-full h-full text-sm font-bold text-[var(--text1)]">
-                          {(cropToDelete.CropName || "C").charAt(0).toUpperCase()}
+                        <span className="flex items-center justify-center w-full h-full text-xs font-bold text-[var(--text1)]">
+                          {(crop.CropName || "C").charAt(0).toUpperCase()}
                         </span>
                       )}
-                    </span>
-                    <p className="text-black text-[15px] leading-5">
-                      Delete this crop data? <br />
-                      <span className="font-bold text-[var(--text1)]">{cropToDelete.CropName || "This crop"}</span> will be removed permanently.
-                    </p>
-                  </div>
-                  <div className="flex gap-2 justify-end">
-                    <button
-                      onClick={() => setCropToDelete(null)}
-                      disabled={deleting}
-                      className="px-4 py-2 rounded-xl bg-[rgba(0,0,0,0.1)] text-black text-[14px] font-semibold hover:bg-[rgba(0,0,0,0.2)] transition-colors cursor-pointer disabled:opacity-50"
-                    >
-                      Cancel
                     </button>
-                    <button
-                      onClick={handleDeleteCrop}
-                      disabled={deleting}
-                      className="px-4 py-2 rounded-xl bg-red-600 text-white text-[14px] font-semibold hover:bg-red-700 transition-colors cursor-pointer disabled:opacity-50"
-                    >
-                      {deleting ? "Deleting..." : "OK"}
-                    </button>
+                  ))
+                ) : (
+                  <p className="text-xs text-gray-500 pl-2">No crops added yet</p>
+                )}
+              </div>
+              {tooltip && createPortal(
+                <span
+                  className="uppercase absolute px-2 py-1 text-[10px] font-semibold text-white bg-[var(--text1)] rounded-md whitespace-nowrap pointer-events-none z-[9999]"
+                  style={{ left: tooltip.x, top: tooltip.y, transform: 'translateX(-50%)' }}
+                >
+                  {tooltip.name}
+                </span>,
+                document.body
+              )}
+              {/* Delete Crop Confirmation Popup */}
+              {cropToDelete && createPortal(
+                <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-[rgba(0,0,0,0.5)]" onClick={() => !deleting && setCropToDelete(null)}>
+                  <div
+                    className="bg-[var(--bg)] rounded-2xl shadow-2xl border-2 border-[var(--text1)] p-6 max-w-[320px] w-[90%] flex flex-col gap-4"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="w-12 h-12 rounded-full overflow-hidden border-2 border-[var(--text1)] bg-[var(--text1)]/20 shrink-0">
+                        {cropToDelete.cropImage ? (
+                          <img src={cropToDelete.cropImage} alt={cropToDelete.CropName} className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="flex items-center justify-center w-full h-full text-sm font-bold text-[var(--text1)]">
+                            {(cropToDelete.CropName || "C").charAt(0).toUpperCase()}
+                          </span>
+                        )}
+                      </span>
+                      <p className="text-black text-[15px] leading-5">
+                        Delete this crop data? <br />
+                        <span className="font-bold text-[var(--text1)]">{cropToDelete.CropName || "This crop"}</span> will be removed permanently.
+                      </p>
+                    </div>
+                    <div className="flex gap-2 justify-end">
+                      <button
+                        onClick={() => setCropToDelete(null)}
+                        disabled={deleting}
+                        className="px-4 py-2 rounded-xl bg-[rgba(0,0,0,0.1)] text-black text-[14px] font-semibold hover:bg-[rgba(0,0,0,0.2)] transition-colors cursor-pointer disabled:opacity-50"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleDeleteCrop}
+                        disabled={deleting}
+                        className="px-4 py-2 rounded-xl bg-red-600 text-white text-[14px] font-semibold hover:bg-red-700 transition-colors cursor-pointer disabled:opacity-50"
+                      >
+                        {deleting ? "Deleting..." : "OK"}
+                      </button>
+                    </div>
                   </div>
-                </div>
-              </div>,
-              document.body
-            )}
+                </div>,
+                document.body
+              )}
             </div>
             <div className="h-100 rounded-2xl overflow-y-auto bg-[rgba(0,0,0,0.1)] p-2 scrollbar-thin scrollbar-track-[#D7E8C0] scrollbar-thumb-[#679936]">
               <ul className="grid gap-2">
+                <p className="text-black font-semibold pl-2 flex gap-1 place-items-baseline justify-between"><span className="flex gap-1 place-items-baseline">Live Data: <Crown size={13} fill="black" /></span><span className="text-xs text-white bg-[#679936] place-items-center py-1 px-2 rounded-full">Coming Soon</span></p>
+                <NavLink to="/dashboard/livecropdata" className={({ isActive }) => isActive ? "bg-green-700 cursor-pointer text-white text-[18px] px-2  py-3 rounded-2xl flex justify-between items-center" : "bg-[rgba(0,0,0,0.1)] cursor-pointer text-black text-[18px] px-2  py-3 rounded-2xl flex items-center justify-between"} >
+                  <p>Live Crop Data </p>
+                  <span className="relative inline-flex items-center justify-center w-10 h-10 mr-2 rounded-full place-items-center bg-[#6899367a]">
+                    <span className="relative z-10 w-5 h-5 rounded-full bg-[#689936a9] liveData inset-0 place-items-center" />
+                  </span>
+
+
+                </NavLink>
                 <p className="text-black font-semibold pl-2">Crop Management:</p>
                 <NavLink to="/dashboard/cropprogress" className={({ isActive }) => isActive ? "bg-green-700 cursor-pointer text-white text-[18px] px-2  py-3 rounded-2xl" : "bg-[rgba(0,0,0,0.1)] cursor-pointer text-black text-[18px] px-2  py-3 rounded-2xl"} >
                   <p>Daily Crop Progress</p>
@@ -209,7 +218,7 @@ export default function DashboardLayout() {
                 <NavLink to={"/dashboard/weatheralerts"} className={({ isActive }) => isActive ? "bg-green-700 cursor-pointer  text-white text-[18px] px-2  py-3 rounded-2xl" : "bg-[rgba(0,0,0,0.1)] cursor-pointer text-black text-[18px] px-2  py-3 rounded-2xl"} >
                   <p>Weather Alerts</p>
                 </NavLink>
-                
+
                 <p className="text-black font-semibold pl-2">Marketplace</p>
                 <NavLink to={"/dashboard/marketplace"} className={({ isActive }) => isActive ? "bg-green-700 cursor-pointer  text-white text-[18px] px-2  py-3 rounded-2xl" : "bg-[rgba(0,0,0,0.1)] cursor-pointer text-black text-[18px] px-2  py-3 rounded-2xl"} >
                   <p>Global Market Rates</p>

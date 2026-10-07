@@ -74,3 +74,22 @@ html {
   scrollbar-thumb: var(--text1);
   scrollbar-track: var(--bg); 
 }
+.liveData{
+  /* animation: live 0.2s ease-in infinite linear; */
+  animation-name: live;
+  animation-timing-function: ease-in;
+  animation-iteration-count: infinite;
+  animation-duration: 1s;
+  animation-direction: alternate-reverse;
+  /* background: #000; */
+}
+
+@keyframes live {
+  to{
+    transform: scale(1.1);
+  }
+  from{
+    transform: scale(0);
+    
+  }
+}
