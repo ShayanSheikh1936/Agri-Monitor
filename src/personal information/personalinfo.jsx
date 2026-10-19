@@ -231,7 +231,7 @@ Track your crop development and progress from your dashboard.
 </table>
 
 <table width="100%" cellpadding="0" cellspacing="0" border="0"
-style="background:#ffffff;border-radius:12px;">
+style="margin-bottom:14px;background:#ffffff;border-radius:12px;">
 <tr>
 <td width="55" style="padding:18px 10px 18px 18px;">
 <div style="font-size:27px;">💹</div>
@@ -242,6 +242,23 @@ Crop Suggestions & Market Rates
 </strong>
 <p style="font-size:13px;line-height:1.5;color:#707A72;margin:6px 0 0;">
 Explore crop suggestions, commodity information and crop market rates.
+</p>
+</td>
+</tr>
+</table>
+
+<table width="100%" cellpadding="0" cellspacing="0" border="0"
+style="margin-bottom:14px;background:#ffffff;border-radius:12px;">
+<tr>
+<td width="55" style="padding:18px 10px 18px 18px;">
+<div style="font-size:27px;">🩺</div>
+</td>
+<td style="padding:16px 18px 16px 5px;">
+<strong style="font-size:16px;color:#315B38;">
+Agri Monitor Doctor
+</strong>
+<p style="font-size:13px;line-height:1.5;color:#707A72;margin:6px 0 0;">
+Consult agricultural experts in real time and get professional guidance for crop health, diseases, pests, fertilizers, and farming problems.
 </p>
 </td>
 </tr>

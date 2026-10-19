@@ -218,7 +218,7 @@ export default function ContactUs() {
               <h4>Is Agri Monitor free to use?</h4>
               <p>
                 Yes! Our basic crop monitoring and weather alerts are
-                completely free. Premium features like advanced soil analytics
+                completely free. Premium features like, live crop data, advanced soil analytics
                 and market pricing are available in our Pro plan.
               </p>
             </div>
@@ -233,7 +233,7 @@ export default function ContactUs() {
               <h4>Can I get alerts on my phone?</h4>
               <p>
                 Absolutely. Once you create an account and set up your farm,
-                you will receive SMS and push notifications for weather
+                you will receive Email, SMS and push notifications for weather
                 warnings, irrigation reminders, and pest alerts.
               </p>
             </div>
